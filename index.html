@@ -805,12 +805,12 @@ function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
 function norm(v){const m=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])||1;return[v[0]/m,v[1]/m,v[2]/m];}
 
 const MCFG = {
-  listening:   {rotSpeedY:0.30,rotXTarget:0.38,rotXWobble:0.08,flowSpeed:0.55,hue:200,sat:52,lit:50,glowAlpha:0.10,glowR:160,stripAlpha:0.82,edgeAlpha:0.60,edgeGlow:8, R:85,W:18,cycleSpeed:9, pulseAmp:5, pulseSpeed:0.85},
-  curious:     {rotSpeedY:0.58,rotXTarget:0.44,rotXWobble:0.12,flowSpeed:1.10,hue:185,sat:62,lit:54,glowAlpha:0.15,glowR:172,stripAlpha:0.88,edgeAlpha:0.72,edgeGlow:12,R:87,W:20,cycleSpeed:18,pulseAmp:8, pulseSpeed:1.40},
-  engaged:     {rotSpeedY:1.15,rotXTarget:0.52,rotXWobble:0.18,flowSpeed:2.80,hue:42, sat:82,lit:62,glowAlpha:0.24,glowR:185,stripAlpha:0.96,edgeAlpha:0.88,edgeGlow:20,R:90,W:22,cycleSpeed:36,pulseAmp:14,pulseSpeed:2.60},
-  celebrating: {rotSpeedY:2.20,rotXTarget:0.62,rotXWobble:0.28,flowSpeed:4.50,hue:38, sat:92,lit:70,glowAlpha:0.38,glowR:200,stripAlpha:0.99,edgeAlpha:0.95,edgeGlow:32,R:95,W:26,cycleSpeed:60,pulseAmp:20,pulseSpeed:3.80},
-  soft:        {rotSpeedY:0.09,rotXTarget:0.25,rotXWobble:0.03,flowSpeed:0.18,hue:270,sat:26,lit:43,glowAlpha:0.05,glowR:138,stripAlpha:0.52,edgeAlpha:0.32,edgeGlow:4, R:80,W:14,cycleSpeed:2, pulseAmp:2, pulseSpeed:0.20},
-  sad:         {rotSpeedY:0.06,rotXTarget:0.18,rotXWobble:0.02,flowSpeed:0.10,hue:222,sat:28,lit:36,glowAlpha:0.04,glowR:120,stripAlpha:0.42,edgeAlpha:0.22,edgeGlow:3, R:78,W:13,cycleSpeed:1, pulseAmp:2, pulseSpeed:0.14},
+  listening:   {rotSpeedY:0.30,rotXTarget:0.38,rotXWobble:0.08,flowSpeed:0.55,hue:200,sat:52,lit:50,glowAlpha:0.12,glowR:175,stripAlpha:0.82,edgeAlpha:0.60,edgeGlow:8, R:132,W:27,cycleSpeed:9, pulseAmp:7, pulseSpeed:0.85},
+  curious:     {rotSpeedY:0.58,rotXTarget:0.44,rotXWobble:0.12,flowSpeed:1.10,hue:185,sat:62,lit:54,glowAlpha:0.16,glowR:185,stripAlpha:0.88,edgeAlpha:0.72,edgeGlow:12,R:135,W:30,cycleSpeed:18,pulseAmp:12,pulseSpeed:1.40},
+  engaged:     {rotSpeedY:1.15,rotXTarget:0.52,rotXWobble:0.18,flowSpeed:2.80,hue:42, sat:82,lit:62,glowAlpha:0.26,glowR:195,stripAlpha:0.96,edgeAlpha:0.88,edgeGlow:20,R:140,W:33,cycleSpeed:36,pulseAmp:20,pulseSpeed:2.60},
+  celebrating: {rotSpeedY:2.20,rotXTarget:0.62,rotXWobble:0.28,flowSpeed:4.50,hue:38, sat:92,lit:70,glowAlpha:0.40,glowR:210,stripAlpha:0.99,edgeAlpha:0.95,edgeGlow:32,R:148,W:39,cycleSpeed:60,pulseAmp:28,pulseSpeed:3.80},
+  soft:        {rotSpeedY:0.09,rotXTarget:0.25,rotXWobble:0.03,flowSpeed:0.18,hue:270,sat:26,lit:43,glowAlpha:0.06,glowR:155,stripAlpha:0.52,edgeAlpha:0.32,edgeGlow:4, R:124,W:21,cycleSpeed:2, pulseAmp:3, pulseSpeed:0.20},
+  sad:         {rotSpeedY:0.06,rotXTarget:0.18,rotXWobble:0.02,flowSpeed:0.10,hue:222,sat:28,lit:36,glowAlpha:0.05,glowR:140,stripAlpha:0.42,edgeAlpha:0.22,edgeGlow:3, R:121,W:20,cycleSpeed:1, pulseAmp:3, pulseSpeed:0.14},
 };
 
 let mL={...MCFG.listening}, mHue=200, mRotY=0, mRotX=0.38;
@@ -902,11 +902,11 @@ function drawMobius(t, dt) {
   const pi=Math.round(((fp%(Math.PI*2))/(Math.PI*2))*N_U)%N_U, mj=N_V>>1;
   if(p2[pi]?.[mj]){
     const[px,py]=p2[pi][mj];
-    const gp=mctx.createRadialGradient(px,py,0,px,py,22);
+    const gp=mctx.createRadialGradient(px,py,0,px,py,34);
     gp.addColorStop(0,   hslB(Math.min(l+35,95),0.85));
     gp.addColorStop(0.5, hslB(l+20,0.30));
     gp.addColorStop(1,   'rgba(0,0,0,0)');
-    mctx.beginPath(); mctx.arc(px,py,22,0,Math.PI*2);
+    mctx.beginPath(); mctx.arc(px,py,34,0,Math.PI*2);
     mctx.fillStyle=gp; mctx.fill();
   }
 }
