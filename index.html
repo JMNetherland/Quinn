@@ -242,12 +242,12 @@ html, body {
 }
 
 .messages {
-  flex: 1;
   overflow-y: auto;
   padding: 12px 26px 4px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-height: 32vh;
   scrollbar-width: thin;
   scrollbar-color: var(--border-2) transparent;
 }
@@ -323,6 +323,7 @@ html, body {
   padding: 14px 18px 20px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  margin-top: auto;
 }
 
 .chat-input {
@@ -658,9 +659,9 @@ let currentView = 'signin';
 let currentKid  = null;
 
 const STAGES = {
-  signin:    { id: 'signin-stage',  size: () => Math.min(Math.round(window.innerWidth * 0.65), 300) + 'px' },
-  chat:      { id: 'chat-stage',    size: () => Math.min(Math.round(window.innerWidth * 0.55), 260) + 'px' },
-  meetgreet: { id: 'mg-stage',      size: () => Math.min(Math.round(window.innerWidth * 0.55), 260) + 'px' },
+  signin:    { id: 'signin-stage',  size: () => Math.min(Math.round(window.innerWidth * 0.80), 340) + 'px' },
+  chat:      { id: 'chat-stage',    size: () => Math.min(Math.round(window.innerWidth * 0.74), 310) + 'px' },
+  meetgreet: { id: 'mg-stage',      size: () => Math.min(Math.round(window.innerWidth * 0.74), 310) + 'px' },
   parent:    { id: null,            size: null     },
 };
 
