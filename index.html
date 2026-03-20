@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quinn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=Figtree:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+
+/* ── Reset ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+button { cursor: pointer; font: inherit; }
+textarea { font: inherit; }
+
+/* ── Tokens ─────────────────────────────────────────────────────────────────── */
+:root {
+  --bg:         #07070f;
+  --surface:    #0c0c1a;
+  --surface-2:  #111126;
+  --border:     #18182e;
+  --border-2:   #222240;
+  --text:       #dcdcec;
+  --text-2:     #7070a0;
+  --text-3:     #32324e;
+  /* accent is set dynamically from JS — Quinn's live hue */
+  --accent:         hsl(200, 52%, 52%);
+  --accent-dim:     hsl(200, 30%, 16%);
+  --accent-subtle:  hsl(200, 20%, 12%);
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Figtree', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow: hidden;
+}
+
+/* ── View system ────────────────────────────────────────────────────────────── */
+.view {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s ease;
+  will-change: opacity;
+}
+.view.active { opacity: 1; pointer-events: all; }
+
+/* ── Quinn canvas ───────────────────────────────────────────────────────────── */
+#quinn-cv {
+  display: block;
+  /* rendered at 420×420 — CSS size set per view */
+  flex-shrink: 0;
+}
+
+.quinn-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SIGN-IN VIEW
+   ════════════════════════════════════════════════════════════════════════════ */
+#view-signin {
+  align-items: center;
+  justify-content: center;
+}
+
+#view-signin .quinn-stage { margin-bottom: 10px; }
+
+.signin-wordmark {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 36px;
+}
+
+.signin-form {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Field wrapper — floats label up on focus/filled */
+.field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 7px;
+  transition: color 0.2s;
+}
+
+.field:focus-within label { color: var(--text-2); }
+
+.field-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: 'Figtree', sans-serif;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  -webkit-appearance: none;
+}
+.field input::placeholder { color: var(--text-3); }
+.field input:focus {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+/* Password show/hide toggle */
+.pwd-toggle {
+  position: absolute; right: 12px;
+  background: none; border: none;
+  color: var(--text-3);
+  font-size: 0.75rem;
+  font-family: 'Syne', sans-serif;
+  letter-spacing: 0.08em;
+  padding: 2px 4px;
+  transition: color 0.2s;
+  line-height: 1;
+}
+.pwd-toggle:hover { color: var(--text-2); }
+.field input[type="password"] { padding-right: 52px; }
+
+.signin-error {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  color: hsl(0, 60%, 55%);
+  min-height: 1.2em;
+  padding-left: 2px;
+}
+
+.signin-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #07070f;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 4px;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.signin-btn:hover  { opacity: 0.88; }
+.signin-btn:active { transform: scale(0.98); }
+
+.signin-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.signin-footer-link {
+  background: none; border: none;
+  color: var(--text-3);
+  font-family: 'Syne', sans-serif;
+  font-size: 0.56rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  padding: 0;
+}
+.signin-footer-link:hover { color: var(--text-2); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CHAT VIEW  (also used as base for meet-greet)
+   ════════════════════════════════════════════════════════════════════════════ */
+.chat-header {
+  display: flex; align-items: center;
+  padding: 18px 22px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; gap: 12px;
+}
+
+.back-btn {
+  background: none; border: none;
+  color: var(--text-3);
+  font-size: 1.1rem;
+  padding: 2px 4px;
+  transition: color 0.2s;
+  line-height: 1;
+}
+.back-btn:hover { color: var(--text-2); }
+
+.header-kid-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.header-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: auto;
+  transition: background 0.8s ease;
+}
+
+#view-chat .quinn-stage,
+#view-meetgreet .quinn-stage {
+  padding: 20px 0 8px;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 26px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-2) transparent;
+}
+
+/* Quinn messages — left border in live accent color */
+.msg-quinn {
+  max-width: 70%;
+  padding: 8px 0 8px 14px;
+  border-left: 2px solid var(--accent);
+  margin-bottom: 8px;
+  transition: border-color 0.8s ease;
+}
+.msg-quinn .msg-text {
+  font-size: 0.93rem;
+  color: var(--text);
+  line-height: 1.68;
+}
+.msg-quinn .msg-time {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  margin-top: 5px;
+}
+
+/* Kid messages — right-aligned */
+.msg-kid {
+  display: flex; flex-direction: column; align-items: flex-end;
+  align-self: flex-end;
+  max-width: 62%;
+  margin-bottom: 8px;
+}
+.msg-kid .msg-text {
+  font-size: 0.9rem;
+  color: var(--text-2);
+  text-align: right;
+  line-height: 1.62;
+}
+.msg-kid .msg-time {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  margin-top: 5px;
+}
+
+/* Thinking indicator */
+.msg-thinking {
+  max-width: 70%;
+  padding: 10px 0 10px 14px;
+  border-left: 2px solid var(--border-2);
+  margin-bottom: 8px;
+}
+.thinking-dots {
+  display: flex; gap: 5px; align-items: center; height: 18px;
+}
+.thinking-dots span {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--text-3);
+  animation: dot-pulse 1.4s ease-in-out infinite;
+}
+.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dot-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* Input bar */
+.input-bar {
+  display: flex; align-items: flex-end; gap: 10px;
+  padding: 14px 18px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 20px;
+  padding: 10px 16px;
+  color: var(--text);
+  font-size: 0.88rem;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+  max-height: 96px;
+  overflow-y: auto;
+  transition: border-color 0.2s;
+  scrollbar-width: none;
+}
+.chat-input::placeholder { color: var(--text-3); }
+.chat-input:focus { border-color: var(--accent); }
+
+.send-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border-2);
+  background: transparent;
+  color: var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.send-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-dim);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PARENT DASHBOARD
+   ════════════════════════════════════════════════════════════════════════════ */
+#view-parent { overflow-y: auto; }
+
+.parent-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 26px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky; top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+
+.parent-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.parent-body { padding: 32px 26px 48px; display: flex; flex-direction: column; gap: 40px; }
+
+.section-label {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 14px;
+}
+
+/* Kid cards */
+.kid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+.kid-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 20px 18px;
+  transition: border-color 0.2s;
+}
+.kid-card:hover { border-color: var(--border-2); }
+
+.kid-card-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.kid-card-meta {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  margin-bottom: 18px;
+}
+.subject-row {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 0.75rem; color: var(--text-2);
+  margin-bottom: 8px;
+}
+.subject-label { min-width: 72px; font-size: 0.75rem; }
+.bar-bg {
+  flex: 1; height: 2px;
+  background: var(--surface-2);
+  border-radius: 2px; overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: background 1s ease;
+}
+.bar-pct {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  min-width: 26px;
+  text-align: right;
+}
+.kid-card-last {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.52rem; letter-spacing: 0.1em;
+  color: var(--text-3);
+  margin-top: 14px;
+}
+
+/* Exam list */
+.exam-list { display: flex; flex-direction: column; gap: 8px; }
+
+.exam-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.exam-date {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.57rem; font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  min-width: 52px;
+  transition: color 1s ease;
+}
+.exam-subject { font-size: 0.82rem; color: var(--text); }
+.exam-who {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.55rem; letter-spacing: 0.1em;
+  color: var(--text-3);
+  margin-left: auto;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ══ SIGN-IN ═══════════════════════════════════════════════════════════════ -->
+<div id="view-signin" class="view active">
+  <div class="quinn-stage" id="signin-stage"></div>
+  <p class="signin-wordmark">Quinn</p>
+
+  <form class="signin-form" onsubmit="handleSignIn(event)">
+    <div class="field">
+      <label for="signin-email">Email</label>
+      <div class="field-inner">
+        <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" required>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="signin-password">Password</label>
+      <div class="field-inner">
+        <input type="password" id="signin-password" placeholder="••••••••" autocomplete="current-password" required>
+        <button type="button" class="pwd-toggle" onclick="togglePassword()" id="pwd-toggle-btn">show</button>
+      </div>
+    </div>
+
+    <div class="signin-error" id="signin-error"></div>
+
+    <button type="submit" class="signin-btn">Sign in</button>
+
+    <div class="signin-footer">
+      <button type="button" class="signin-footer-link" onclick="forgotPassword()">Forgot password?</button>
+      <button type="button" class="signin-footer-link" onclick="showView('parent')">Parent access →</button>
+    </div>
+  </form>
+</div>
+
+<!-- ══ CHAT ══════════════════════════════════════════════════════════════════ -->
+<div id="view-chat" class="view">
+  <div class="chat-header">
+    <button class="back-btn" onclick="showView('signin')">←</button>
+    <span class="header-kid-name" id="chat-kid-label">—</span>
+    <div class="header-dot"></div>
+  </div>
+  <div class="quinn-stage" id="chat-stage"></div>
+  <div class="messages" id="chat-messages"></div>
+  <div class="input-bar">
+    <textarea class="chat-input" id="chat-input" rows="1"
+      placeholder="Say something…"
+      onkeydown="handleKey(event,'chat')"
+      oninput="autoGrow(this)"></textarea>
+    <button class="send-btn" onclick="sendMessage('chat')">→</button>
+  </div>
+</div>
+
+<!-- ══ MEET & GREET ══════════════════════════════════════════════════════════ -->
+<div id="view-meetgreet" class="view">
+  <div class="chat-header">
+    <button class="back-btn" onclick="showView('signin')">←</button>
+    <span class="header-kid-name">First meeting</span>
+    <div class="header-dot"></div>
+  </div>
+  <div class="quinn-stage" id="mg-stage"></div>
+  <div class="messages" id="mg-messages"></div>
+  <div class="input-bar">
+    <textarea class="chat-input" id="mg-input" rows="1"
+      placeholder="Say something…"
+      onkeydown="handleKey(event,'mg')"
+      oninput="autoGrow(this)"></textarea>
+    <button class="send-btn" onclick="sendMessage('mg')">→</button>
+  </div>
+</div>
+
+<!-- ══ PARENT DASHBOARD ══════════════════════════════════════════════════════ -->
+<div id="view-parent" class="view">
+  <div class="parent-header">
+    <button class="back-btn" onclick="showView('signin')">←</button>
+    <span class="parent-title">Quinn — Parent Overview</span>
+  </div>
+  <div class="parent-body">
+
+    <div>
+      <div class="section-label">Kids</div>
+      <div class="kid-cards">
+
+        <div class="kid-card">
+          <div class="kid-card-name">Mason</div>
+          <div class="kid-card-meta">Age 10 · Grade 5</div>
+          <div class="subject-row">
+            <span class="subject-label">Math</span>
+            <div class="bar-bg"><div class="bar-fill" style="width:38%"></div></div>
+            <span class="bar-pct">38%</span>
+          </div>
+          <div class="subject-row">
+            <span class="subject-label">Science</span>
+            <div class="bar-bg"><div class="bar-fill" style="width:71%"></div></div>
+            <span class="bar-pct">71%</span>
+          </div>
+          <div class="kid-card-last">Last active today</div>
+        </div>
+
+        <div class="kid-card">
+          <div class="kid-card-name">Joie</div>
+          <div class="kid-card-meta">Age 13 · Grade 8</div>
+          <div class="subject-row">
+            <span class="subject-label">English</span>
+            <div class="bar-bg"><div class="bar-fill" style="width:80%"></div></div>
+            <span class="bar-pct">80%</span>
+          </div>
+          <div class="subject-row">
+            <span class="subject-label">History</span>
+            <div class="bar-bg"><div class="bar-fill" style="width:54%"></div></div>
+            <span class="bar-pct">54%</span>
+          </div>
+          <div class="kid-card-last">Last active yesterday</div>
+        </div>
+
+        <div class="kid-card">
+          <div class="kid-card-name">Bella</div>
+          <div class="kid-card-meta">Age 15 · Grade 10</div>
+          <div class="subject-row">
+            <span class="subject-label">Chemistry</span>
+            <div class="bar-bg"><div class="bar-fill" style="width:62%"></div></div>
+            <span class="bar-pct">62%</span>
+          </div>
+          <div class="subject-row">
+            <span class="subject-label">Algebra II</span>
+            <div class="bar-bg"><div class="bar-fill" style="width:46%"></div></div>
+            <span class="bar-pct">46%</span>
+          </div>
+          <div class="kid-card-last">Last active 2 days ago</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Upcoming exams</div>
+      <div class="exam-list">
+        <div class="exam-item">
+          <span class="exam-date">MAR 24</span>
+          <span class="exam-subject">Fractions Quiz</span>
+          <span class="exam-who">Mason</span>
+        </div>
+        <div class="exam-item">
+          <span class="exam-date">MAR 27</span>
+          <span class="exam-subject">Chapter 7 — Civil War</span>
+          <span class="exam-who">Joie</span>
+        </div>
+        <div class="exam-item">
+          <span class="exam-date">APR 3</span>
+          <span class="exam-subject">Chemistry Midterm</span>
+          <span class="exam-who">Bella</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Quinn lives here — moved between view stages by the router -->
+<canvas id="quinn-cv" width="420" height="420"></canvas>
+
+<script>
+'use strict';
+
+// ── Router ────────────────────────────────────────────────────────────────────
+let currentView = 'signin';
+let currentKid  = null;
+
+const STAGES = {
+  signin:    { id: 'signin-stage',  size: '176px' },
+  chat:      { id: 'chat-stage',    size: '196px' },
+  meetgreet: { id: 'mg-stage',      size: '196px' },
+  parent:    { id: null,            size: null     },
+};
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  currentView = name;
+
+  const cfg = STAGES[name];
+  const cv  = document.getElementById('quinn-cv');
+  if (cfg?.id) {
+    const stage = document.getElementById(cfg.id);
+    stage.appendChild(cv);
+    cv.style.width = cv.style.height = cfg.size;
+  }
+}
+
+// ── Sign-in handlers ──────────────────────────────────────────────────────────
+function handleSignIn(e) {
+  e.preventDefault();
+  const email = document.getElementById('signin-email').value.trim().toLowerCase();
+  const error = document.getElementById('signin-error');
+  error.textContent = '';
+
+  // Placeholder auth — routes by email prefix until Supabase is wired
+  if (email.startsWith('mason'))       { selectKid('mason'); return; }
+  if (email.startsWith('joie'))        { selectKid('joie');  return; }
+  if (email.startsWith('bella'))       { selectKid('bella'); return; }
+  if (email.includes('parent') ||
+      email.includes('jason') ||
+      email.includes('keri'))          { showView('parent'); return; }
+
+  // Default: show error (real auth will handle this properly)
+  error.textContent = 'Account not found.';
+}
+
+function togglePassword() {
+  const input = document.getElementById('signin-password');
+  const btn   = document.getElementById('pwd-toggle-btn');
+  if (input.type === 'password') { input.type = 'text';     btn.textContent = 'hide'; }
+  else                           { input.type = 'password'; btn.textContent = 'show'; }
+}
+
+function forgotPassword() {
+  document.getElementById('signin-error').textContent = 'Password reset — coming soon.';
+}
+
+function selectKid(kid) {
+  currentKid = kid;
+  document.getElementById('chat-kid-label').textContent =
+    kid.charAt(0).toUpperCase() + kid.slice(1);
+
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML = '';
+  addQuinnMsg('chat', greetingFor(kid));
+  showView('chat');
+}
+
+function greetingFor(kid) {
+  const g = {
+    mason: "Hey Mason! Good to see you. What's going on today?",
+    joie:  "Hey Joie! What do you want to talk about?",
+    bella: "Hey. What's on your mind?",
+  };
+  return g[kid] || "Hey! What's going on?";
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function msgTime() {
+  const n = new Date();
+  return `${n.getHours()}:${String(n.getMinutes()).padStart(2,'0')}`;
+}
+
+function addQuinnMsg(view, text) {
+  const container = document.getElementById(view === 'chat' ? 'chat-messages' : 'mg-messages');
+  const d = document.createElement('div');
+  d.className = 'msg-quinn';
+  d.innerHTML = `<div class="msg-text">${text}</div><div class="msg-time">${msgTime()}</div>`;
+  container.appendChild(d);
+  container.scrollTop = container.scrollHeight;
+  setQuinnState('listening');
+}
+
+function addKidMsg(view, text) {
+  const container = document.getElementById(view === 'chat' ? 'chat-messages' : 'mg-messages');
+  const d = document.createElement('div');
+  d.className = 'msg-kid';
+  d.innerHTML = `<div class="msg-text">${text}</div><div class="msg-time">${msgTime()}</div>`;
+  container.appendChild(d);
+  container.scrollTop = container.scrollHeight;
+  setQuinnState('engaged');
+}
+
+function addThinking(view) {
+  const container = document.getElementById(view === 'chat' ? 'chat-messages' : 'mg-messages');
+  const d = document.createElement('div');
+  d.className = 'msg-thinking';
+  d.id = view + '-thinking';
+  d.innerHTML = `<div class="thinking-dots"><span></span><span></span><span></span></div>`;
+  container.appendChild(d);
+  container.scrollTop = container.scrollHeight;
+  setQuinnState('curious');
+  return d;
+}
+
+function sendMessage(view) {
+  const inputId = view === 'chat' ? 'chat-input' : 'mg-input';
+  const input   = document.getElementById(inputId);
+  const text    = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  addKidMsg(view, text);
+
+  // Placeholder thinking → response
+  const thinking = addThinking(view);
+  setTimeout(() => {
+    thinking.remove();
+    addQuinnMsg(view, '[Quinn response — API connection coming soon]');
+  }, 1400);
+}
+
+function handleKey(e, view) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(view); }
+}
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 96) + 'px';
+}
+
+// ── Quinn state ───────────────────────────────────────────────────────────────
+let quinnState = 'listening';
+function setQuinnState(s) { quinnState = s; }
+
+// ── Möbius animation ──────────────────────────────────────────────────────────
+function lerp(a,b,t){return a+(b-a)*t;}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function cross(a,b){return[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
+function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+function norm(v){const m=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])||1;return[v[0]/m,v[1]/m,v[2]/m];}
+
+const MCFG = {
+  listening:   {rotSpeedY:0.30,rotXTarget:0.38,rotXWobble:0.08,flowSpeed:0.55,hue:200,sat:52,lit:50,glowAlpha:0.10,glowR:160,stripAlpha:0.82,edgeAlpha:0.60,edgeGlow:8, R:85,W:18,cycleSpeed:9, pulseAmp:5, pulseSpeed:0.85},
+  curious:     {rotSpeedY:0.58,rotXTarget:0.44,rotXWobble:0.12,flowSpeed:1.10,hue:185,sat:62,lit:54,glowAlpha:0.15,glowR:172,stripAlpha:0.88,edgeAlpha:0.72,edgeGlow:12,R:87,W:20,cycleSpeed:18,pulseAmp:8, pulseSpeed:1.40},
+  engaged:     {rotSpeedY:1.15,rotXTarget:0.52,rotXWobble:0.18,flowSpeed:2.80,hue:42, sat:82,lit:62,glowAlpha:0.24,glowR:185,stripAlpha:0.96,edgeAlpha:0.88,edgeGlow:20,R:90,W:22,cycleSpeed:36,pulseAmp:14,pulseSpeed:2.60},
+  celebrating: {rotSpeedY:2.20,rotXTarget:0.62,rotXWobble:0.28,flowSpeed:4.50,hue:38, sat:92,lit:70,glowAlpha:0.38,glowR:200,stripAlpha:0.99,edgeAlpha:0.95,edgeGlow:32,R:95,W:26,cycleSpeed:60,pulseAmp:20,pulseSpeed:3.80},
+  soft:        {rotSpeedY:0.09,rotXTarget:0.25,rotXWobble:0.03,flowSpeed:0.18,hue:270,sat:26,lit:43,glowAlpha:0.05,glowR:138,stripAlpha:0.52,edgeAlpha:0.32,edgeGlow:4, R:80,W:14,cycleSpeed:2, pulseAmp:2, pulseSpeed:0.20},
+  sad:         {rotSpeedY:0.06,rotXTarget:0.18,rotXWobble:0.02,flowSpeed:0.10,hue:222,sat:28,lit:36,glowAlpha:0.04,glowR:120,stripAlpha:0.42,edgeAlpha:0.22,edgeGlow:3, R:78,W:13,cycleSpeed:1, pulseAmp:2, pulseSpeed:0.14},
+};
+
+let mL={...MCFG.listening}, mHue=200, mRotY=0, mRotX=0.38;
+const N_U=160, N_V=10;
+const PARAMS=(()=>{
+  const p=[];
+  for(let i=0;i<=N_U;i++){p[i]=[];for(let j=0;j<=N_V;j++)p[i][j]={u:(i/N_U)*Math.PI*2,v:-1+(j/N_V)*2};}
+  return p;
+})();
+
+function mobiusPt(u,v,R){return[(R+v*Math.cos(u/2))*Math.cos(u),(R+v*Math.cos(u/2))*Math.sin(u),v*Math.sin(u/2)];}
+function rY(p,a){return[p[0]*Math.cos(a)-p[2]*Math.sin(a),p[1],p[0]*Math.sin(a)+p[2]*Math.cos(a)];}
+function rX(p,a){return[p[0],p[1]*Math.cos(a)-p[2]*Math.sin(a),p[1]*Math.sin(a)+p[2]*Math.cos(a)];}
+function proj(p,fov=420){const s=fov/(fov+p[2]+120);return[210+p[0]*s,210+p[1]*s,p[2]];}
+
+const cv   = document.getElementById('quinn-cv');
+const mctx = cv.getContext('2d');
+const MLIGHT = norm([0.5,-0.7,0.8]);
+
+function drawMobius(t, dt) {
+  const tgt = MCFG[quinnState];
+  for (const k in mL) mL[k] = lerp(mL[k], tgt[k], 0.035);
+  mHue = (mHue + dt * mL.cycleSpeed) % 360;
+  mRotY += dt * mL.rotSpeedY;
+  mRotX = lerp(mRotX, mL.rotXTarget + Math.sin(t*0.19)*mL.rotXWobble, 0.02);
+
+  // Sync UI accent to Quinn's live hue — the whole interface breathes with Quinn
+  const h = mHue|0, s = mL.sat|0, l = mL.lit|0;
+  const root = document.documentElement.style;
+  root.setProperty('--accent',        `hsl(${h},${s}%,${l}%)`);
+  root.setProperty('--accent-dim',    `hsl(${h},${(s*.45)|0}%,15%)`);
+  root.setProperty('--accent-subtle', `hsl(${h},${(s*.3)|0}%,11%)`);
+
+  mctx.clearRect(0,0,420,420);
+  const hsl  = (a)    => `hsla(${h},${s}%,${l}%,${a})`;
+  const hslB = (bl,a) => `hsla(${h},${s}%,${bl}%,${a})`;
+
+  const bg = mctx.createRadialGradient(210,210,0,210,210,mL.glowR);
+  bg.addColorStop(0,   hsl(mL.glowAlpha));
+  bg.addColorStop(0.6, hsl(mL.glowAlpha*0.4));
+  bg.addColorStop(1,   'rgba(0,0,0,0)');
+  mctx.fillStyle = bg; mctx.fillRect(0,0,420,420);
+
+  const R = mL.R + Math.sin(t*mL.pulseSpeed)*mL.pulseAmp;
+  const W = mL.W;
+  const p2=[], p3=[];
+  for(let i=0;i<=N_U;i++){
+    p2[i]=[]; p3[i]=[];
+    for(let j=0;j<=N_V;j++){
+      const {u,v}=PARAMS[i][j];
+      const r2=rX(rY(mobiusPt(u,v*W,R),mRotY),mRotX);
+      p3[i][j]=r2; p2[i][j]=proj(r2);
+    }
+  }
+
+  const fp=t*mL.flowSpeed, quads=[];
+  for(let i=0;i<N_U;i++){
+    for(let j=0;j<N_V;j++){
+      const q00=p3[i][j],q10=p3[i+1][j],q11=p3[i+1][j+1],q01=p3[i][j+1];
+      const d1=[q11[0]-q00[0],q11[1]-q00[1],q11[2]-q00[2]];
+      const d2=[q10[0]-q01[0],q10[1]-q01[1],q10[2]-q01[2]];
+      const ld = Math.abs(dot(norm(cross(d1,d2)), MLIGHT));
+      const uC = ((i+0.5)/N_U)*Math.PI*2;
+      const glow = Math.pow(clamp(Math.sin(uC*2-fp),0,1),1.8);
+      const zC=(p2[i][j][2]+p2[i+1][j][2]+p2[i+1][j+1][2]+p2[i][j+1][2])/4;
+      quads.push({p00:p2[i][j],p10:p2[i+1][j],p11:p2[i+1][j+1],p01:p2[i][j+1],z:zC,ld,glow,edge:j===0||j===N_V-1});
+    }
+  }
+  quads.sort((a,b)=>a.z-b.z);
+
+  quads.forEach(q=>{
+    const {p00,p10,p11,p01,ld,glow,edge}=q;
+    const br=l+ld*18+glow*24;
+    mctx.beginPath();
+    mctx.moveTo(p00[0],p00[1]); mctx.lineTo(p10[0],p10[1]);
+    mctx.lineTo(p11[0],p11[1]); mctx.lineTo(p01[0],p01[1]);
+    mctx.closePath();
+    mctx.fillStyle=hslB(clamp(br,20,92), mL.stripAlpha*(0.35+ld*0.35+glow*0.30));
+    mctx.fill();
+    if(edge){
+      mctx.strokeStyle=hslB(clamp(br+12,40,96), mL.edgeAlpha*(0.4+glow*0.6));
+      mctx.lineWidth=1.5;
+      mctx.shadowColor=hslB(clamp(br+12,40,96),0.9);
+      mctx.shadowBlur=mL.edgeGlow*(0.3+glow*0.7);
+      mctx.stroke(); mctx.shadowBlur=0;
+    }
+  });
+
+  const pi=Math.round(((fp%(Math.PI*2))/(Math.PI*2))*N_U)%N_U, mj=N_V>>1;
+  if(p2[pi]?.[mj]){
+    const[px,py]=p2[pi][mj];
+    const gp=mctx.createRadialGradient(px,py,0,px,py,22);
+    gp.addColorStop(0,   hslB(Math.min(l+35,95),0.85));
+    gp.addColorStop(0.5, hslB(l+20,0.30));
+    gp.addColorStop(1,   'rgba(0,0,0,0)');
+    mctx.beginPath(); mctx.arc(px,py,22,0,Math.PI*2);
+    mctx.fillStyle=gp; mctx.fill();
+  }
+}
+
+// ── Init & loop ───────────────────────────────────────────────────────────────
+// Place Quinn on sign-in stage
+const signinStage = document.getElementById('signin-stage');
+signinStage.appendChild(cv);
+cv.style.width = cv.style.height = '176px';
+mRotX = MCFG.listening.rotXTarget;
+
+let tPrev=0, elapsed=0;
+function loop(stamp) {
+  const dt = Math.min((stamp-tPrev)/1000, 0.05);
+  tPrev=stamp; elapsed+=dt;
+  drawMobius(elapsed, dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(ts=>{ tPrev=ts; requestAnimationFrame(loop); });
+</script>
+</body>
+</html>
