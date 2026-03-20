@@ -238,7 +238,7 @@ html, body {
 
 #view-chat .quinn-stage,
 #view-meetgreet .quinn-stage {
-  padding: 20px 0 8px;
+  padding: 12px 0 4px;
 }
 
 .messages {
@@ -658,9 +658,9 @@ let currentView = 'signin';
 let currentKid  = null;
 
 const STAGES = {
-  signin:    { id: 'signin-stage',  size: '176px' },
-  chat:      { id: 'chat-stage',    size: '196px' },
-  meetgreet: { id: 'mg-stage',      size: '196px' },
+  signin:    { id: 'signin-stage',  size: () => Math.min(Math.round(window.innerWidth * 0.65), 300) + 'px' },
+  chat:      { id: 'chat-stage',    size: () => Math.min(Math.round(window.innerWidth * 0.55), 260) + 'px' },
+  meetgreet: { id: 'mg-stage',      size: () => Math.min(Math.round(window.innerWidth * 0.55), 260) + 'px' },
   parent:    { id: null,            size: null     },
 };
 
@@ -674,7 +674,7 @@ function showView(name) {
   if (cfg?.id) {
     const stage = document.getElementById(cfg.id);
     stage.appendChild(cv);
-    cv.style.width = cv.style.height = cfg.size;
+    cv.style.width = cv.style.height = typeof cfg.size === 'function' ? cfg.size() : cfg.size;
   }
 }
 
@@ -914,7 +914,7 @@ function drawMobius(t, dt) {
 // Place Quinn on sign-in stage
 const signinStage = document.getElementById('signin-stage');
 signinStage.appendChild(cv);
-cv.style.width = cv.style.height = '176px';
+cv.style.width = cv.style.height = STAGES.signin.size();
 mRotX = MCFG.listening.rotXTarget;
 
 let tPrev=0, elapsed=0;
