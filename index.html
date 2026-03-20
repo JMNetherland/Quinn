@@ -926,6 +926,12 @@ function loop(stamp) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(ts=>{ tPrev=ts; requestAnimationFrame(loop); });
+
+// ── Service worker — always-fresh, no stale cache ─────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/Quinn/sw.js', { scope: '/Quinn/' })
+    .catch(err => console.warn('SW registration failed:', err));
+}
 </script>
 </body>
 </html>
