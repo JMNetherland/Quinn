@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-21 (Session 7)
+> Last updated: 2026-03-21 (Session 8)
 
 ---
 
@@ -437,6 +437,95 @@ Wiring:
 #### Pending verification
 - **session_summaries write** — needs 5-minute idle test to confirm the 201 Created comes back correctly after the auth header fix
 - **Remove debug console.error** from `saveMeetGreetProfile` once confirmed working
+
+---
+
+### Session 7 — 2026-03-21
+
+#### Work completed
+
+**1. Bella dyslexia font (`index.html`)**
+- OpenDyslexic loaded via inline `@font-face` (not CDN `<link>`) — eliminates flash of unstyled text
+- `font-display: block` prevents FOUT; `await document.fonts.load('400 1em OpenDyslexic')` in `applyDyslexiaFont` ensures font is ready before the chat view appears
+- Font controlled by `stable.dyslexia_font = true` in the kid's `learner_profiles.profile_json`
+- To enable: `UPDATE learner_profiles SET profile_json = jsonb_set(profile_json, '{stable,dyslexia_font}', 'true') WHERE kid_id = (SELECT id FROM kids WHERE name = 'Bella');`
+- `applyDyslexiaFont` must be `async` — this caused a sign-in breaking bug when the keyword was accidentally stripped during a later edit
+
+**2. Upload error visibility fix (`index.html`)**
+- `.upload-status` text color was `var(--text-3)` = near-invisible on dark background
+- Fixed: normal state uses `var(--text-2)`, error state uses `#e05c5c`
+- Catch block now shows the actual `err.message` instead of a generic string
+
+**3. Parent notes edit + delete (`index.html`)**
+- Added `deleteNote(noteId, kidId)`, `editNote(noteId)`, `saveNoteEdit(noteId, kidId)`, `cancelNoteEdit(noteId)`
+- Note items now have `id="note-item-${n.id}"` for in-place DOM mutation
+- Inline edit replaces the note text with a textarea + Save/Cancel buttons; save calls Supabase UPDATE and re-renders just that note item
+
+**4. SSH key setup for GitHub**
+- Set up ed25519 SSH key to eliminate password prompts on every `git push`
+- Key added to GitHub account; `~/.ssh/config` configured with `IdentityFile ~/.ssh/id_ed25519`
+
+**5. Multi-parent access — Keri (`index.html`, Supabase SQL)**
+- Added `co_parent_id uuid REFERENCES auth.users(id)` column to `kids` table
+- Updated all 5 RLS policies on `kids` and related tables to include `OR co_parent_id = auth.uid()`
+- JS query changed from `.eq('parent_id', user.id)` to `.or('parent_id.eq.${user.id},co_parent_id.eq.${user.id}')`
+- SQL run in Supabase editor to set `co_parent_id = Keri's UUID` on Mason/Joie/Bella rows
+
+**6. Kid profile editing from parent dashboard (`index.html`)**
+- Added `saveKidProfile(kidId)` — reads name/age/grade inputs from the detail panel and calls Supabase UPDATE
+- Updates in-memory `parentData` and re-renders just the card header (no full re-render)
+
+**7. Details panel bug fix (`index.html`)**
+- Root cause: `hidden` HTML attribute on `.kid-detail` was overridden by CSS `display: flex` — panels appeared collapsed visually but had full `offsetHeight` (638–750px)
+- Fix: removed `hidden` attribute approach entirely; panels now use `.open` CSS class toggle
+- `toggleKidDetail(kidId)` updated to use `classList.toggle('open', ...)`
+
+**8. Voice mode — TTS + STT (`index.html`)**
+- `speakQuinn(text)` — strips markdown, picks best en-US voice, speaks via `speechSynthesis`; animation state → `engaged` while speaking, → `listening` on end
+- `toggleMic(view)` — `SpeechRecognition` (Chrome/Android only); auto-fills input and sends on final result
+- `toggleMute()` — global mute toggle, persists across messages; updates 🔊/🔇 button across both views
+- `pickVoice()` — prefers Google en-US voice, falls back through Zira → any en-US → any en → voices[0]
+- Mic (🎤) and mute (🔊) buttons added to both chat and MG view input rows
+- `speakQuinn(greeting)` called on `showView('chat')` in `routeUser` and `saveMeetGreetProfile`
+- `speakQuinn(response)` called after every Quinn message in `sendMessage`
+- Keyboard input cancels any in-progress speech (except Shift key)
+- Sign-out cleans up: `speechSynthesis.cancel()`, `recognition.abort()`
+- Version bumped to v0.2.0 (MINOR — new feature)
+
+#### Files changed
+- `index.html` — all of the above
+- `sw.js` — CACHE_NAME bumped to `quinn-v0.2.0`
+- `HANDOFF.md` — version + current state table updates
+
+#### Known issues going into Session 8
+- iOS TTS silent — iOS blocks `speechSynthesis.speak()` from async code; initial one-time unlock approach did not work; iOS requires speak() in the same synchronous gesture context
+
+---
+
+### Session 8 — 2026-03-21
+
+#### Work completed
+
+**1. iOS TTS fix — partial (`index.html`)**
+- Root cause: iOS blocks `speechSynthesis.speak()` unless called synchronously from within a user gesture handler. Quinn's responses always arrive from `await`-based async callbacks, which iOS treats as outside the gesture context.
+- Fix 1: Changed initial unlock utterance from `''` (empty string) to `' '` (space) — iOS ignores zero-length utterances and doesn't register them as unlocks
+- Fix 2: Added iOS TTS prime to `handleSignIn` before first `await` — on sign-in button tap (a gesture), fire `cancel()` + `speak(' ')` synchronously to warm up the audio session before auth completes
+- Fix 3: Added iOS TTS prime to `sendMessage` before first `await` — same pattern, keeps iOS audio session active during each API call
+- Fix 4: Added 50ms `setTimeout` between `cancel()` and `speak()` in `speakQuinn` — iOS silently drops `speak()` called immediately after `cancel()` due to internal audio session reset
+
+**Result:** ✅ Works for Quinn responses to chat messages on iOS. ❌ Initial greeting (spoken right after sign-in) is still silent on iOS.
+
+**Remaining issue — initial greeting:**
+- Flow: sign-in button tap → `handleSignIn` (prime fires here) → `await signInWithPassword` → `await routeUser` (multiple awaits: profiles, kids, summaries, exams, materials) → `speakQuinn(greeting)`
+- By the time the greeting fires, iOS may have re-locked the audio session after 3–5+ seconds of async work
+- The 50ms `setTimeout` in `speakQuinn` means it does not fire synchronously even within the routeUser chain
+
+#### Files changed
+- `index.html` — iOS TTS fixes in `handleSignIn`, `sendMessage`, `speakQuinn`, and the initial unlock block
+- `HANDOFF.md` — this update
+
+#### Next task
+- Fix initial greeting TTS on iOS — options: (a) reduce awaits before `speakQuinn(greeting)` so it fires faster, (b) add a "tap to hear greeting" button that fires speak from a direct gesture, (c) investigate if a pre-queued utterance in the handleSignIn gesture survives through all the subsequent awaits
 
 ---
 
