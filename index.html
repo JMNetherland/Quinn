@@ -755,7 +755,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 'use strict';
 
 // ── Version ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.1.1';
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
 const SUPABASE_URL      = 'https://onevueekevfpniopuyhj.supabase.co';
@@ -872,6 +872,7 @@ async function routeUser(userId, errorEl) {
     supabase.from('exams').select('*')
       .eq('kid_id', kid.id)
       .gte('exam_date', today)
+      .is('archived_at', null)
       .order('exam_date', { ascending: true }),
     supabase.from('parent_notes').select('note, created_at')
       .eq('kid_id', kid.id)

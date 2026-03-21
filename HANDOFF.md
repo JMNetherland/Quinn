@@ -1,7 +1,21 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-20 (Session 4)
+> Last updated: 2026-03-20 (Session 6)
+
+---
+
+## Version
+
+**Current: `v0.1.1`**
+
+| Bump | When |
+|---|---|
+| PATCH (0.1.**x**) | Bug fixes, small tweaks — no new features |
+| MINOR (0.**x**.0) | New feature shipped and tested |
+| MAJOR (**x**.0.0) | `1.0.0` = production-ready, all kids using it |
+
+Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.1.1`.
 
 ---
 
@@ -99,30 +113,39 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Learner profile loading | ✅ Loads from Supabase |
 | Session summaries loading | ✅ Loads last 5 |
 | Upcoming exams loading | ✅ Loads from Supabase |
-| SQL migration file | ✅ Created — **not yet run** |
+| SQL migration | ✅ Run in production |
 | Meet & Greet routing | ✅ First-run flow now reachable |
 | Meet & Greet conversation | ✅ Wired — real API, exchange counter, profile save after 8 turns |
 | Claude API chat integration | ✅ Complete |
-| Supabase Edge Functions (`chat`) | ✅ Complete — deploy required |
+| Edge Functions (chat, summarize, update-profile, ingest-material) | ✅ Deployed |
+| ANTHROPIC_API_KEY secret | ✅ Set |
 | Session summary writing (incremental) | ✅ Complete |
 | Learner profile update after session | ✅ Complete |
-| Parent dashboard (dynamic data) | ✅ Complete — loads from Supabase |
+| Parent dashboard (dynamic data) | ✅ Complete |
 | Exam management (add/delete per kid) | ✅ Complete |
 | Study material upload + Claude ingestion | ✅ Complete |
 | Parent notes (per kid, injected into Quinn context) | ✅ Complete |
-| Edge Function — `ingest-material` | ✅ Complete — deploy required |
-| Supabase migration run in project | ⏳ Pending Jason |
+| Supabase Storage bucket (`study-materials`) | ✅ Created with RLS |
+| Auth users created (Jason, Keri, Mason, Joie, Bella, JMNetherland) | ✅ Done |
+| Database seeded (profiles + kids rows) | ✅ Done |
+| Deployed to GitHub Pages | ✅ Live |
+| Edge Function auth header (explicit Bearer token) | ✅ Fixed |
+| RLS write policies (learner_profiles + session_summaries) | ✅ Fixed |
+| Service worker cross-origin guard | ✅ Fixed |
+| Meet & Greet → chat seamless transition | ✅ Fixed |
+| learner_profiles upsert onConflict | ✅ Fixed |
+| Version numbering (APP_VERSION + CACHE_NAME) | ✅ v0.1.0 |
+| quinn-version-bump skill | ✅ Created |
+| Bella dyslexia font | ⏳ Next coding task |
 
 ---
 
 ## Next Steps (in order)
 
-1. **Run migration + seed data + deploy** — see "Needs Jason" section above
-2. **Parent dashboard** — Dynamic data from Supabase (kids, exams, summaries) replacing hardcoded HTML
-3. **Bella dyslexia font** — Apply OpenDyslexic when `learner_profile.stable.dyslexia_font === true`
-4. **Exam entry UI** — Parent dashboard form to add/edit exams
-5. **Study material upload + Gemini ingestion** — PDF/doc upload → Gemini summary → stored in `study_materials`
-6. **Parent notes** — Simple free-text notes per kid visible in parent dashboard
+1. **Test the live app** — full end-to-end test pass (see test plan in Session 5 notes)
+2. **Bella dyslexia font** — Apply OpenDyslexic when `learner_profile.stable.dyslexia_font === true`
+3. **Multi-parent access** — schema change to support Keri having her own dashboard view
+4. **Kid profile editing** — parent dashboard form to edit name/age/grade
 
 ---
 
@@ -309,40 +332,110 @@ Wiring:
 
 ---
 
-## Needs Jason (everything required before end-to-end testing)
+---
 
-1. **Run SQL migration** — open Supabase dashboard → SQL editor → paste and run `supabase/migrations/001_initial_schema.sql`
+### Session 5 — March 20, 2026
 
-   > **Schema note (Session 4):** The migration was written with `gemini_summary` on `study_materials`. Rename it to `material_summary`. Also add `archived_at TIMESTAMPTZ` columns to both `exams` and `study_materials` for soft-delete support. Run this patch after the main migration:
-   > ```sql
-   > ALTER TABLE study_materials RENAME COLUMN gemini_summary TO material_summary;
-   > ALTER TABLE study_materials ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
-   > ALTER TABLE exams ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
-   > ```
+#### Work completed
 
-2. **Deploy Edge Functions** — from the `Quinn/` project root:
-   ```
-   supabase functions deploy chat
-   supabase functions deploy summarize
-   supabase functions deploy update-profile
-   supabase functions deploy ingest-material
-   ```
-3. **Set API key secret** — `supabase secrets set ANTHROPIC_API_KEY=<your_key>`
-   > No GEMINI_API_KEY needed — Gemini has been dropped. Claude handles document ingestion.
+**1. SQL migration fixed and run**
+- Fixed migration file before running: renamed `gemini_summary` → `material_summary`, added `archived_at` to `exams` table (was already on `study_materials`)
+- Migration run successfully in Supabase SQL editor — all 7 tables + RLS policies created
 
-4. **Enable Supabase Storage** — Dashboard → Storage → Create a new bucket named `study-materials`. Set it to **private** (RLS). Add a policy allowing authenticated users to insert/read their own kid's files.
+**2. Supabase CLI installed and configured**
+- Installed via Scoop (npm global install not supported by Supabase CLI)
+- `supabase login` → `supabase init` → `supabase link --project-ref onevueekevfpniopuyhj`
 
-5. **Create parent account** — Supabase Auth → Add user (email + password) for Jason (and Keri if desired)
-6. **Create kid accounts** — Supabase Auth → Add user for Mason, Joie, and Bella (one each)
-7. **Seed `profiles` table** — for each auth user, insert a row linking the `id` (UUID from Auth) to the correct `kid_id` FK and set `is_parent` flag appropriately. Example:
-   ```sql
-   -- Parent
-   INSERT INTO profiles (id, is_parent) VALUES ('<jason-auth-uuid>', true);
-   -- Kid
-   INSERT INTO profiles (id, is_parent, kid_id) VALUES ('<mason-auth-uuid>', false, '<mason-kids-uuid>');
-   ```
-   The `kids` table rows also need to exist first (name, age, grade, parent_id).
-8. **Push to GitHub Pages** — `git push origin main` (Pages auto-deploys on push)
+**3. Edge Functions deployed**
+- All 4 deployed via CLI: `chat`, `summarize`, `update-profile`, `ingest-material`
+- `ANTHROPIC_API_KEY` secret set via `supabase secrets set`
+
+**4. Supabase Storage bucket**
+- Created `study-materials` bucket (private)
+- RLS policy added via SQL editor (dashboard policy UI had syntax issues): all operations for authenticated users
+
+**5. Auth users + database seed**
+- 6 auth users created: Jason, Keri, Mason, Joie, Bella, JMNetherland (test kid)
+- `kids` table seeded: Mason (4th grade), Joie (8th grade), Bella (9th grade), Test Kid
+- `profiles` table seeded: Jason + Keri as parents; Mason/Joie/Bella/JMNetherland as kids
+- Grade corrections applied via SQL UPDATE after initial seed
+
+**6. Deployed to GitHub Pages**
+- Full project committed and pushed — site is live
+
+#### Known limitations (v1)
+- Only Jason's parent account sees the dashboard — kids have `parent_id = Jason's UUID`. Keri can use Jason's login. Multi-parent support is a future schema change.
+- No kid profile editing from the parent dashboard — name/age/grade changes require SQL editor.
+
+#### Files changed
+- `supabase/migrations/001_initial_schema.sql` — fixed column names + added archived_at to exams
+- `supabase/config.toml` — new (from supabase init)
+- `HANDOFF.md` — this update
+
+---
+
+## Needs Jason
+
+- **Bella dyslexia font** — next coding task (not yet implemented). See Next Steps.
+- **Multi-parent dashboard access** — v1 limitation: only Jason's account sees the parent dashboard. Keri can use Jason's login for now. Schema change needed for dual-parent support.
+- **Kid profile editing from dashboard** — no edit form for name/age/grade yet. Use SQL editor for corrections in the meantime.
+
+---
+
+---
+
+### Session 6 — March 20, 2026
+
+#### Work completed
+
+**1. Edge Function auth header fix (`index.html`)**
+- Root cause: `supabase-js` v2.99.3 does not auto-inject auth into `functions.invoke` calls
+- Fix: explicitly pass `Authorization: Bearer <access_token>` in every `functions.invoke` call
+- Applied to all 4 Edge Functions: `chat`, `summarize`, `update-profile`, `ingest-material`
+- Fallback: if no session token, send anon key so Edge Function always receives a valid header
+
+**2. RLS write policies added**
+- `learner_profiles` had only a SELECT policy — INSERT and UPDATE were silently blocked
+- `session_summaries` same issue
+- Fixed by adding `FOR ALL` policies for both tables (authenticated kids on their own rows)
+- Migration file updated: `supabase/migrations/001_initial_schema.sql`
+
+**3. Service worker cross-origin guard (`sw.js`)**
+- SW was intercepting Supabase POST calls (cross-origin) — caused silent failures on fetch
+- Fix: `if (url.origin !== self.location.origin) return;` at top of fetch handler
+- Only same-origin requests are now intercepted by the SW
+
+**4. Meet & Greet → chat seamless transition (`index.html`)**
+- Old behavior: `saveMeetGreetProfile` cleared conversation history and showed a new first-time greeting
+- Fix: copy `mgConversationHistory → conversationHistory`, move DOM message nodes from MG container to chat container (no re-render), skip reset greeting
+- Kid now flows directly into conversation without any indication of a "switch"
+
+**5. learner_profiles upsert conflict fix (`index.html`)**
+- Both `saveMeetGreetProfile` and `updateProfile` upserts were missing `{ onConflict: 'kid_id' }`
+- Without it, repeated upserts threw 409 Conflict (unique constraint on kid_id)
+- Fixed in both call sites
+
+**6. Version numbering**
+- Added `const APP_VERSION = '0.1.0'` to `index.html`
+- Added version display to sign-in view (`<p class="app-version">v0.1.0</p>`, bottom-right, subtle)
+- `CACHE_NAME` in `sw.js` set to `quinn-v0.1.0` — always keeps in sync with APP_VERSION
+- Versioning rules documented in HANDOFF.md Version section
+
+**7. `quinn-version-bump` skill**
+- Created Claude Code skill at `c:\Dev\.claude\skills\quinn-version-bump\SKILL.md`
+- Handles: read current version → determine bump type → update index.html + sw.js + HANDOFF.md atomically → commit → tag → remind user to push with --tags
+- Enforces: PATCH = bug fix, MINOR = new feature tested, MAJOR = 1.0.0 all kids live
+
+#### Files changed
+- `index.html` — auth header on all 4 Edge Function calls, seamless MG transition, upsert onConflict, APP_VERSION constant + version display
+- `sw.js` — cross-origin guard, CACHE_NAME bump to quinn-v0.1.0
+- `supabase/migrations/001_initial_schema.sql` — RLS write policies for learner_profiles + session_summaries
+- `c:\Dev\.claude\skills\quinn-version-bump\SKILL.md` — new skill
+- `HANDOFF.md` — this update
+
+#### Pending verification
+- **session_summaries write** — needs 5-minute idle test to confirm the 201 Created comes back correctly after the auth header fix
+- **Remove debug console.error** from `saveMeetGreetProfile` once confirmed working
 
 ---
 

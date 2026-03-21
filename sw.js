@@ -1,6 +1,6 @@
 // Quinn Service Worker — network-first, always fresh
 // Bump CACHE_NAME when you want to force-wipe the offline cache
-const CACHE_NAME = 'quinn-v1';
+const CACHE_NAME = 'quinn-v0.1.1';
 
 // Install — take over immediately, don't wait for old tabs to close
 self.addEventListener('install', () => self.skipWaiting());
