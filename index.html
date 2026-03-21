@@ -1026,7 +1026,12 @@ async function sendMessage(view) {
     };
     if (view === 'mg') body.is_first_meeting = true;
 
-    const { data, error } = await supabase.functions.invoke('chat', { body });
+    const { data: { session } } = await supabase.auth.getSession();
+    const authHeader = session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : { Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
+    const { data, error } = await supabase.functions.invoke('chat', { body, headers: authHeader });
 
     thinking.remove();
 
