@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-20
+> Last updated: 2026-03-20 (Session 3)
 
 ---
 
@@ -104,8 +104,8 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Meet & Greet conversation | ✅ Wired — real API, exchange counter, profile save after 8 turns |
 | Claude API chat integration | ✅ Complete |
 | Supabase Edge Functions (`chat`) | ✅ Complete — deploy required |
-| Session summary writing (incremental) | ❌ Not started |
-| Learner profile update after session | ❌ Not started |
+| Session summary writing (incremental) | ✅ Complete |
+| Learner profile update after session | ✅ Complete |
 | Parent dashboard (dynamic data) | ❌ Still hardcoded HTML |
 | Exam entry UI | ❌ Not started |
 | Study material upload + Gemini ingestion | ❌ Not started |
@@ -116,13 +116,12 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 
 ## Next Steps (in order)
 
-1. **Run migration** — Jason runs `supabase/migrations/001_initial_schema.sql` in the Supabase SQL editor
-2. **Seed data** — Create parent + kid accounts in Supabase Auth; seed `profiles` table
-3. **Deploy Edge Function** — `supabase functions deploy chat` from project root; set `ANTHROPIC_API_KEY` secret via `supabase secrets set ANTHROPIC_API_KEY=...`
-4. **Session summary system** — Incremental writes + inactivity timeout (5 min)
-5. **Learner profile update** — Post-session Haiku call to enrich profile JSON from conversation
-6. **Parent dashboard** — Dynamic data from Supabase (kids, exams, summaries)
-7. **Bella dyslexia font** — Apply OpenDyslexic when `learner_profile.stable.dyslexia_font === true`
+1. **Run migration + seed data + deploy** — see "Needs Jason" section above
+2. **Parent dashboard** — Dynamic data from Supabase (kids, exams, summaries) replacing hardcoded HTML
+3. **Bella dyslexia font** — Apply OpenDyslexic when `learner_profile.stable.dyslexia_font === true`
+4. **Exam entry UI** — Parent dashboard form to add/edit exams
+5. **Study material upload + Gemini ingestion** — PDF/doc upload → Gemini summary → stored in `study_materials`
+6. **Parent notes** — Simple free-text notes per kid visible in parent dashboard
 
 ---
 
@@ -176,6 +175,92 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 - Run `supabase functions deploy chat` from project root
 - Set secret: `supabase secrets set ANTHROPIC_API_KEY=<key>`
 - Migration still needs to be run if not already done (Session 1 item)
+
+---
+
+---
+
+### Session 3 — March 20, 2026
+
+#### Pre-session state (review findings)
+
+- `session_summaries` and `learner_profiles` write path was entirely missing
+- `sendMessage` had no inactivity timer, no incremental summary triggers
+- No `summarize` or `update-profile` Edge Functions existed
+
+#### Work completed
+
+**1. Edge Function — `summarize` (`supabase/functions/summarize/index.ts`)**
+- Accepts POST: `{ kid_id, conversation_segment, existing_summary, learner_profile }`
+- `conversation_segment`: array of `{ role, content }` messages since last summary write
+- `existing_summary`: current partial summary object (null on first write)
+- Calls `claude-haiku-4-5-20251001` at `temperature=0.2` — structured output
+- Produces / updates session summary JSON: `mood_open` (first write only), `mood_close` (always), `subjects_touched` (accumulates), `academic_notes`, `personal_notes`, `communication_notes`, `readiness_estimate` (per-subject 1–5)
+- Returns: `{ summary }` — raw JSON object, no commentary
+
+**2. Edge Function — `update-profile` (`supabase/functions/update-profile/index.ts`)**
+- Accepts POST: `{ kid_id, current_profile, session_summary }`
+- Calls `claude-haiku-4-5-20251001` at `temperature=0.2`
+- Applies three-tier update rules in the prompt:
+  - `stable`: only update on fact changes (age, grade, name)
+  - `current_state`: always update (mood, recent subjects, stressors, last_active)
+  - `observed_patterns`: only update if confirmed 2+ times; contradictions noted but not overwritten
+  - `academic`: update gaps and mastered_recently from session evidence
+  - `interests`: accumulate only
+- Returns: `{ profile }` — updated profile JSON only
+
+**3. Session summary logic — `index.html`**
+
+New state variables:
+- `currentSessionSummary` — running summary object (null at session start)
+- `sessionStartedAt` — ISO timestamp when chat view entered
+- `lastSummaryAt` — `conversationHistory.length` at last summary write
+- `inactivityTimer` — `setTimeout` handle
+- `sessionEnded` — guard preventing double finalization
+- `SESSION_INACTIVITY_MS = 5 * 60 * 1000` (5 minutes)
+
+New functions:
+- `resetInactivityTimer()` — clears and restarts 5-minute inactivity countdown
+- `writeSummary(isFinal)` — calls `summarize` Edge Function for new segment; if `isFinal=true`, inserts to `session_summaries` and calls `updateProfile()`; guards: non-final skips if <6 new messages; `sessionEnded` prevents double finalization
+- `updateProfile()` — calls `update-profile` Edge Function, upserts to `learner_profiles`, updates in-memory `learnerProfile`
+
+Wiring:
+- `resetInactivityTimer()` called after every Quinn response in chat view
+- `writeSummary(false)` called fire-and-forget every 10 messages (`conversationHistory.length % 10 === 0`) in chat view
+- `inactivityTimer` fires `writeSummary(true)` after 5 minutes of silence
+- `signOut()` clears timer + resets all new state vars
+- Session state (`sessionStartedAt`, `currentSessionSummary`, `lastSummaryAt`, `sessionEnded`) initialized fresh when routing to chat view (both `routeUser` and `saveMeetGreetProfile`)
+- History trim now also adjusts `lastSummaryAt` to stay in sync
+
+#### Files changed
+- `supabase/functions/summarize/index.ts` — **new**
+- `supabase/functions/update-profile/index.ts` — **new**
+- `index.html` — state vars, `resetInactivityTimer`, `writeSummary`, `updateProfile`, `sendMessage` triggers, `signOut` reset, session init in `routeUser` + `saveMeetGreetProfile`
+- `HANDOFF.md` — this update
+
+---
+
+## Needs Jason (everything required before end-to-end testing)
+
+1. **Run SQL migration** — open Supabase dashboard → SQL editor → paste and run `supabase/migrations/001_initial_schema.sql`
+2. **Deploy Edge Functions** — from the `Quinn/` project root:
+   ```
+   supabase functions deploy chat
+   supabase functions deploy summarize
+   supabase functions deploy update-profile
+   ```
+3. **Set API key secret** — `supabase secrets set ANTHROPIC_API_KEY=<your_key>`
+4. **Create parent account** — Supabase Auth → Add user (email + password) for Jason (and Keri if desired)
+5. **Create kid accounts** — Supabase Auth → Add user for Mason, Joie, and Bella (one each)
+6. **Seed `profiles` table** — for each auth user, insert a row linking the `id` (UUID from Auth) to the correct `kid_id` FK and set `is_parent` flag appropriately. Example:
+   ```sql
+   -- Parent
+   INSERT INTO profiles (id, is_parent) VALUES ('<jason-auth-uuid>', true);
+   -- Kid
+   INSERT INTO profiles (id, is_parent, kid_id) VALUES ('<mason-auth-uuid>', false, '<mason-kids-uuid>');
+   ```
+   The `kids` table rows also need to exist first (name, age, grade, parent_id).
+7. **Push to GitHub Pages** — `git push origin main` (Pages auto-deploys on push)
 
 ---
 

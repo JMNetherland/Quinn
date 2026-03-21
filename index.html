@@ -677,6 +677,14 @@ let mgExchangeCount       = 0;     // number of user turns in meet & greet
 let mgProfileSaved        = false; // guards against duplicate profile saves
 let isSending             = false; // prevents double-send during async call
 
+// ── Session summary state ──────────────────────────────────────────────────────
+let currentSessionSummary  = null;           // running summary object (null at session start)
+let sessionStartedAt       = null;           // ISO timestamp when chat view was entered
+let lastSummaryAt          = 0;             // conversationHistory.length at last summary write
+let inactivityTimer        = null;           // setTimeout handle
+let sessionEnded           = false;          // prevents double finalization
+const SESSION_INACTIVITY_MS = 5 * 60 * 1000; // 5 minutes
+
 // ── Router ────────────────────────────────────────────────────────────────────
 let currentView = 'signin';
 
@@ -762,6 +770,11 @@ async function routeUser(userId, errorEl) {
   sessionSummaries = summaryRes.data || [];
   upcomingExams    = examRes.data   || [];
 
+  sessionStartedAt      = new Date().toISOString();
+  currentSessionSummary = null;
+  lastSummaryAt         = 0;
+  sessionEnded          = false;
+
   document.getElementById('chat-messages').innerHTML = '';
   addQuinnMsg('chat', buildGreeting(kid, lp, sessionSummaries, upcomingExams));
   showView('chat');
@@ -804,6 +817,7 @@ function buildGreeting(kid, lp, summaries, exams) {
 }
 
 async function signOut() {
+  if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
   await supabase.auth.signOut();
   currentKidRecord      = null;
   learnerProfile        = null;
@@ -814,6 +828,10 @@ async function signOut() {
   mgExchangeCount       = 0;
   mgProfileSaved        = false;
   isSending             = false;
+  currentSessionSummary = null;
+  sessionStartedAt      = null;
+  lastSummaryAt         = 0;
+  sessionEnded          = false;
   showView('signin');
 }
 
@@ -915,7 +933,11 @@ async function sendMessage(view) {
       history.push({ role: 'assistant', content: response });
 
       // Cap at 20 messages (10 pairs) — trim oldest pair first
-      if (history.length > 20) history.splice(0, history.length - 20);
+      if (history.length > 20) {
+        const trimCount = history.length - 20;
+        history.splice(0, trimCount);
+        if (view === 'chat') lastSummaryAt = Math.max(0, lastSummaryAt - trimCount);
+      }
 
       // Quinn animation state — celebrating > curious > listening
       if (/[!]/.test(response) && /great|amazing|awesome|nice|perfect|incredible|love/i.test(response)) {
@@ -925,6 +947,14 @@ async function sendMessage(view) {
       } else {
         setQuinnState('listening');
       }
+
+      // Session summary: fire-and-forget every 5 exchanges (10 messages) in chat view
+      if (view === 'chat' && conversationHistory.length > 0 && conversationHistory.length % 10 === 0) {
+        writeSummary(false); // intentionally not awaited
+      }
+
+      // Reset inactivity timer after each full exchange in chat view
+      if (view === 'chat') resetInactivityTimer();
 
       // Meet & greet: count exchanges and save profile after 8 user turns
       if (view === 'mg') {
@@ -984,9 +1014,112 @@ async function saveMeetGreetProfile() {
   mgConversationHistory = [];
   mgExchangeCount       = 0;
 
+  sessionStartedAt      = new Date().toISOString();
+  currentSessionSummary = null;
+  lastSummaryAt         = 0;
+  sessionEnded          = false;
+
   document.getElementById('chat-messages').innerHTML = '';
   addQuinnMsg('chat', buildGreeting(currentKidRecord, learnerProfile, sessionSummaries, upcomingExams));
   showView('chat');
+}
+
+// ── Session summary & profile update ─────────────────────────────────────────
+
+function resetInactivityTimer() {
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => writeSummary(true), SESSION_INACTIVITY_MS);
+}
+
+async function writeSummary(isFinal) {
+  if (!currentKidRecord) return;
+  if (isFinal && sessionEnded) return;
+
+  const segment = conversationHistory.slice(lastSummaryAt);
+
+  // Non-final writes need at least 3 exchanges (6 messages) to be worth the API call
+  if (!isFinal && segment.length < 6) return;
+
+  try {
+    // Call summarize Edge Function if there is new content to process
+    if (segment.length > 0) {
+      const { data, error } = await supabase.functions.invoke('summarize', {
+        body: {
+          kid_id:               currentKidRecord.id,
+          conversation_segment: segment,
+          existing_summary:     currentSessionSummary,
+          learner_profile:      learnerProfile?.profile_json ?? null,
+        },
+      });
+
+      if (!error && data?.summary) {
+        currentSessionSummary = data.summary;
+        lastSummaryAt         = conversationHistory.length;
+      }
+    }
+
+    if (isFinal) {
+      sessionEnded = true;
+      if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
+
+      if (currentSessionSummary) {
+        const endedAt     = new Date().toISOString();
+        const durationMin = sessionStartedAt
+          ? Math.round((Date.now() - new Date(sessionStartedAt).getTime()) / 60000)
+          : null;
+
+        await supabase.from('session_summaries').insert({
+          kid_id:              currentKidRecord.id,
+          started_at:          sessionStartedAt || endedAt,
+          ended_at:            endedAt,
+          duration_minutes:    durationMin,
+          mood_open:           currentSessionSummary.mood_open ?? null,
+          mood_close:          currentSessionSummary.mood_close ?? null,
+          subjects_touched:    currentSessionSummary.subjects_touched ?? [],
+          academic_notes:      currentSessionSummary.academic_notes ?? null,
+          personal_notes:      currentSessionSummary.personal_notes ?? null,
+          readiness_estimate:  currentSessionSummary.readiness_estimate ?? null,
+          communication_notes: currentSessionSummary.communication_notes ?? null,
+        });
+
+        await updateProfile();
+      }
+    }
+  } catch (err) {
+    console.error('writeSummary error:', err);
+  }
+}
+
+async function updateProfile() {
+  if (!currentKidRecord || !currentSessionSummary) return;
+
+  try {
+    const { data, error } = await supabase.functions.invoke('update-profile', {
+      body: {
+        kid_id:          currentKidRecord.id,
+        current_profile: learnerProfile?.profile_json ?? null,
+        session_summary: currentSessionSummary,
+      },
+    });
+
+    if (error || !data?.profile) return;
+
+    // Upsert updated profile to Supabase
+    await supabase.from('learner_profiles').upsert({
+      kid_id:       currentKidRecord.id,
+      profile_json: data.profile,
+      updated_at:   new Date().toISOString(),
+    });
+
+    // Update in-memory state
+    if (learnerProfile) {
+      learnerProfile.profile_json = data.profile;
+    } else {
+      learnerProfile = { kid_id: currentKidRecord.id, profile_json: data.profile };
+    }
+  } catch (err) {
+    console.error('updateProfile error:', err);
+  }
 }
 
 function handleKey(e, view) {
