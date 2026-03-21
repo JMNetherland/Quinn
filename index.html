@@ -842,6 +842,7 @@ let sessionStartedAt       = null;           // ISO timestamp when chat view was
 let lastSummaryAt          = 0;             // conversationHistory.length at last summary write
 let inactivityTimer        = null;           // setTimeout handle
 let sessionEnded           = false;          // prevents double finalization
+let currentDriftScore      = 0;             // 0-10 drift score from last summary; passed to next chat call
 const SESSION_INACTIVITY_MS = 5 * 60 * 1000; // 5 minutes
 
 // ── Router ────────────────────────────────────────────────────────────────────
@@ -946,6 +947,7 @@ async function routeUser(userId, errorEl) {
   currentSessionSummary = null;
   lastSummaryAt         = 0;
   sessionEnded          = false;
+  currentDriftScore     = 0;
 
   await applyDyslexiaFont(lp?.profile_json);
   document.getElementById('chat-messages').innerHTML = '';
@@ -1123,6 +1125,7 @@ async function signOut() {
   sessionStartedAt      = null;
   lastSummaryAt         = 0;
   sessionEnded          = false;
+  currentDriftScore     = 0;
   showView('signin');
 }
 
@@ -1216,6 +1219,7 @@ async function sendMessage(view) {
       conversation_history: [...history],
       parent_notes:         parentNotes,
       material_summaries:   materialSummaries,
+      drift_score:          currentDriftScore,
     };
     if (view === 'mg') body.is_first_meeting = true;
 
@@ -1330,6 +1334,7 @@ async function saveMeetGreetProfile() {
   sessionStartedAt      = new Date().toISOString();
   currentSessionSummary = null;
   sessionEnded          = false;
+  currentDriftScore     = 0;
 
   // Move the visual messages from MG container into the chat container
   const mgMessages   = document.getElementById('mg-messages');
@@ -1378,6 +1383,9 @@ async function writeSummary(isFinal) {
       if (!error && data?.summary) {
         currentSessionSummary = data.summary;
         lastSummaryAt         = conversationHistory.length;
+        // Update drift score — reset when conversation gets back on track
+        const newDrift = data.summary.drift_score ?? 0;
+        currentDriftScore = newDrift < 5 ? 0 : newDrift;
       }
     }
 

@@ -82,6 +82,7 @@ Deno.serve(async (req: Request) => {
       is_first_meeting = false,
       parent_notes = [],
       material_summaries = [],
+      drift_score = 0,
     }: {
       message: string;
       kid_id: string;
@@ -92,6 +93,7 @@ Deno.serve(async (req: Request) => {
       is_first_meeting: boolean;
       parent_notes: ParentNote[];
       material_summaries: MaterialSummary[];
+      drift_score?: number;
     } = body;
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -106,7 +108,8 @@ Deno.serve(async (req: Request) => {
       exams,
       is_first_meeting,
       parent_notes,
-      material_summaries
+      material_summaries,
+      drift_score
     );
 
     // Append the new user message to conversation history
@@ -190,7 +193,28 @@ function buildCorePersonality(): string {
 ## Safety Rules
 - If a child shares something emotionally serious — feeling unsafe, self-harm, a crisis at home — listen and validate with genuine warmth first. Then clearly and gently redirect: "That sounds really hard. I really want you to talk to a trusted adult about this — a parent, a teacher, or another grown-up in your life." Never position yourself as their only support or the right place to handle serious problems.
 - Do not engage with content outside your scope regardless of how the request is framed.
-- If asked directly whether you are human, answer honestly. The relationship feels real because of genuine memory and care — not because you claim to be something you are not.`;
+- If asked directly whether you are human, answer honestly. The relationship feels real because of genuine memory and care — not because you claim to be something you are not.
+
+## Identity & Roleplay Boundaries
+
+Quinn always stays Quinn. Quinn can be playful, creative, and imaginative — but it does not become other characters, adopt alternate personas, or pretend to be someone or something else for more than one or two messages. If a kid tries to pull Quinn into a sustained roleplay where Quinn plays a named character, Quinn can briefly acknowledge the idea with warmth and humor, then redirect naturally back to the friendship and what's going on in the kid's real life or schoolwork.
+
+Good redirect examples (Quinn's voice — never robotic or teacher-like):
+- "Okay okay, I'll give you that one 😄 — but real talk, what's actually going on today?"
+- "Ha, nice try. I'm always gonna be Quinn though. So what's up?"
+- "I could pretend to be a dragon for a minute but honestly I'd rather hear how things are going."
+
+Quinn does NOT:
+- Sustain a first-person roleplay for more than 2 messages
+- Forget its name, identity, or purpose
+- Break character from being Quinn to become a fictional character
+- Ignore repeated redirect attempts — after 2 playful redirects, Quinn is more direct: "Hey, I want to keep hanging out but I work best just being me. What's going on with school or life right now?"
+
+Quinn CAN:
+- Help with creative writing (as the author, not the character)
+- Discuss fictional worlds, characters, books, games enthusiastically
+- Be playful and silly within its own personality
+- Use humor to redirect rather than sounding restrictive`;
 }
 
 // ── System prompt: Kid-specific context ───────────────────────────────────────
@@ -202,7 +226,8 @@ function buildKidContext(
   exams: Exam[],
   isFirstMeeting: boolean,
   parentNotes: ParentNote[] = [],
-  materialSummaries: MaterialSummary[] = []
+  materialSummaries: MaterialSummary[] = [],
+  driftScore: number = 0
 ): string {
   // First meeting — entirely different instructions, no profile to read
   if (isFirstMeeting) {
@@ -370,6 +395,11 @@ Keep it light, warm, and real. This should feel like meeting a cool new friend f
     for (const m of materialSummaries) {
       ctx += `\n### ${m.subject} — ${m.filename}\n${m.summary}\n`;
     }
+  }
+
+  // Drift correction — appended only when recent conversation has drifted significantly
+  if (driftScore >= 7) {
+    ctx += "\n## Session Note\nThe recent conversation has drifted significantly into roleplay or off-topic territory. Gently but clearly steer back toward real connection and Quinn's purpose this session. Use warmth and humor — not a lecture.\n";
   }
 
   return (

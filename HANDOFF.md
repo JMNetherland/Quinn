@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-21 (Session 8)
+> Last updated: 2026-03-21 (Session 9)
 
 ---
 
@@ -140,6 +140,7 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Version numbering (APP_VERSION + CACHE_NAME) | ✅ v0.1.0 |
 | quinn-version-bump skill | ✅ Created |
 | Bella dyslexia font | ✅ Complete |
+| Roleplay guardrails (identity anchoring + drift detection) | ✅ Complete |
 
 ---
 
@@ -526,6 +527,54 @@ Wiring:
 
 #### Next task
 - Fix initial greeting TTS on iOS — options: (a) reduce awaits before `speakQuinn(greeting)` so it fires faster, (b) add a "tap to hear greeting" button that fires speak from a direct gesture, (c) investigate if a pre-queued utterance in the handleSignIn gesture survives through all the subsequent awaits
+
+---
+
+---
+
+### Session 9 — 2026-03-21
+
+#### Context
+
+One of the kids (observed with Joie, age 13 — [confirm with Jason if it was a different child]) was pulling Quinn into sustained roleplay sessions — Quinn was being asked to adopt named characters and stay in-persona across many messages, effectively losing its identity as Quinn. This session adds two layers of protection against that pattern.
+
+#### Work completed
+
+**1. Identity anchoring — `chat/index.ts` (Block 1, core personality)**
+- Added `## Identity & Roleplay Boundaries` section to `buildCorePersonality()`
+- Because this is Block 1 (identical for all kids), it gets maximum prompt cache reuse
+- Quinn is now explicitly instructed to:
+  - Redirect after 1–2 roleplay messages using warm, funny redirects (not preachy)
+  - Escalate to a clearer "I work best just being me" message after 2 failed redirects
+  - Help with creative writing as the *author* — never as the *character*
+- Three example redirect lines provided in Quinn's voice (not robotic, not teacherly)
+
+**2. Drift detection — `summarize/index.ts`**
+- Added `drift_score` field (integer 0–10) to the `SessionSummary` interface and prompt
+- Haiku scores each conversation segment: 0 = on-task, 10 = fully drifted (Quinn being asked to be another character)
+- Calibrated carefully: normal creative talk, storytelling help, and casual off-topic chat do NOT trigger a high score — only sustained identity-displacing roleplay does
+- `drift_score` is returned inside `{ summary }` from the Edge Function
+
+**3. Drift pass-through — `chat/index.ts`**
+- `drift_score` accepted as optional payload field (defaults to 0)
+- Passed to `buildKidContext()` as `driftScore`
+- If `driftScore >= 7`: appends a `## Session Note` to the end of Block 2 (kid-specific context) instructing Quinn to steer back with warmth and humor — not a lecture
+
+**4. Drift tracking — `index.html`**
+- `currentDriftScore` state variable initialized to 0 on every session start and sign-out
+- After each `writeSummary()` call: if `data.summary.drift_score >= 5`, stores it in `currentDriftScore`; if `< 5`, resets to 0 (conversation is back on track)
+- `sendMessage()` passes `drift_score: currentDriftScore` in every chat payload
+- Reset also wired into `saveMeetGreetProfile` session init (MG → chat transition)
+
+#### Files changed
+- `supabase/functions/chat/index.ts` — identity anchoring in Block 1, drift_score payload + buildKidContext drift instruction
+- `supabase/functions/summarize/index.ts` — drift_score field in SessionSummary interface + prompt instruction
+- `index.html` — currentDriftScore state var, sendMessage payload, writeSummary drift tracking, session init resets, sign-out reset
+- `HANDOFF.md` — this update
+
+#### Deploy required
+- `supabase functions deploy chat`
+- `supabase functions deploy summarize`
 
 ---
 
