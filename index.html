@@ -670,6 +670,13 @@ let learnerProfile   = null;  // row from learner_profiles
 let sessionSummaries = [];    // last 5 session_summaries for this kid
 let upcomingExams    = [];    // upcoming exams for this kid
 
+// ── Conversation state ─────────────────────────────────────────────────────────
+let conversationHistory   = [];    // chat view — in-memory [{role,content}], max 20
+let mgConversationHistory = [];    // meet & greet view history
+let mgExchangeCount       = 0;     // number of user turns in meet & greet
+let mgProfileSaved        = false; // guards against duplicate profile saves
+let isSending             = false; // prevents double-send during async call
+
 // ── Router ────────────────────────────────────────────────────────────────────
 let currentView = 'signin';
 
@@ -734,7 +741,7 @@ async function routeUser(userId, errorEl) {
   if (!lp) {
     // First visit — route to meet & greet
     document.getElementById('mg-messages').innerHTML = '';
-    addQuinnMsg('mg', `Hey ${kid.name}! I'm Quinn. I've been looking forward to meeting you.`);
+    addQuinnMsg('mg', "Hey — I'm Quinn. I've been looking forward to meeting you.");
     showView('meetgreet');
     return;
   }
@@ -798,10 +805,15 @@ function buildGreeting(kid, lp, summaries, exams) {
 
 async function signOut() {
   await supabase.auth.signOut();
-  currentKidRecord = null;
-  learnerProfile   = null;
-  sessionSummaries = [];
-  upcomingExams    = [];
+  currentKidRecord      = null;
+  learnerProfile        = null;
+  sessionSummaries      = [];
+  upcomingExams         = [];
+  conversationHistory   = [];
+  mgConversationHistory = [];
+  mgExchangeCount       = 0;
+  mgProfileSaved        = false;
+  isSending             = false;
   showView('signin');
 }
 
@@ -861,21 +873,120 @@ function addThinking(view) {
   return d;
 }
 
-function sendMessage(view) {
+async function sendMessage(view) {
+  if (isSending) return;
+
   const inputId = view === 'chat' ? 'chat-input' : 'mg-input';
   const input   = document.getElementById(inputId);
   const text    = input.value.trim();
   if (!text) return;
+
+  isSending = true;
   input.value = '';
   input.style.height = 'auto';
   addKidMsg(view, text);
 
-  // Placeholder thinking → response
   const thinking = addThinking(view);
-  setTimeout(() => {
+  const history  = view === 'chat' ? conversationHistory : mgConversationHistory;
+
+  try {
+    const body = {
+      message:              text,
+      kid_id:               currentKidRecord?.id ?? null,
+      learner_profile:      learnerProfile?.profile_json ?? null,
+      session_summaries:    sessionSummaries,
+      exams:                upcomingExams,
+      conversation_history: [...history],
+    };
+    if (view === 'mg') body.is_first_meeting = true;
+
+    const { data, error } = await supabase.functions.invoke('chat', { body });
+
     thinking.remove();
-    addQuinnMsg(view, '[Quinn response — API connection coming soon]');
-  }, 1400);
+
+    if (error || !data?.response) {
+      addQuinnMsg(view, "Quinn seems distracted right now — try again in a second");
+    } else {
+      const response = data.response;
+      addQuinnMsg(view, response);
+
+      // Update in-memory history
+      history.push({ role: 'user',      content: text     });
+      history.push({ role: 'assistant', content: response });
+
+      // Cap at 20 messages (10 pairs) — trim oldest pair first
+      if (history.length > 20) history.splice(0, history.length - 20);
+
+      // Quinn animation state — celebrating > curious > listening
+      if (/[!]/.test(response) && /great|amazing|awesome|nice|perfect|incredible|love/i.test(response)) {
+        setQuinnState('celebrating');
+      } else if (/\?/.test(response.slice(-80))) {
+        setQuinnState('curious');
+      } else {
+        setQuinnState('listening');
+      }
+
+      // Meet & greet: count exchanges and save profile after 8 user turns
+      if (view === 'mg') {
+        mgExchangeCount++;
+        if (mgExchangeCount >= 8 && !mgProfileSaved) {
+          mgProfileSaved = true;
+          await saveMeetGreetProfile();
+        }
+      }
+    }
+  } catch (err) {
+    console.error('sendMessage error:', err);
+    thinking.remove();
+    addQuinnMsg(view, "Quinn seems distracted right now — try again in a second");
+  } finally {
+    isSending = false;
+  }
+}
+
+// After 8+ meet & greet exchanges, write a minimal initial learner_profile
+// and route the kid to the main chat view.
+async function saveMeetGreetProfile() {
+  const initialProfile = {
+    stable: {
+      name:  currentKidRecord.name,
+      age:   currentKidRecord.age,
+      grade: currentKidRecord.grade,
+    },
+    current_state: {
+      current_stressors:  [],
+      exam_anxiety_level: 'unknown',
+      last_session_mood:  'first_meeting',
+    },
+    observed_patterns: {
+      communication_style:          'unknown',
+      explanation_style_that_works: [],
+      what_to_avoid:                [],
+      frustration_signal:           'unknown',
+      encouragement_style:          'unknown',
+    },
+    academic: {
+      strong_subjects: [],
+      weak_subjects:   [],
+      specific_gaps:   [],
+    },
+    interests: [],
+  };
+
+  await supabase.from('learner_profiles').upsert({
+    kid_id:     currentKidRecord.id,
+    profile_json: initialProfile,
+    updated_at: new Date().toISOString(),
+  });
+
+  // Update in-memory state so the chat view has a profile to work with
+  learnerProfile        = { kid_id: currentKidRecord.id, profile_json: initialProfile };
+  mgConversationHistory = [];
+  mgExchangeCount       = 0;
+
+  document.getElementById('chat-messages').innerHTML = '';
+  addQuinnMsg('chat', buildGreeting(currentKidRecord, learnerProfile, sessionSummaries, upcomingExams));
+  showView('chat');
 }
 
 function handleKey(e, view) {

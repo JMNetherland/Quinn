@@ -101,8 +101,9 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Upcoming exams loading | ✅ Loads from Supabase |
 | SQL migration file | ✅ Created — **not yet run** |
 | Meet & Greet routing | ✅ First-run flow now reachable |
-| Claude API chat integration | ❌ Not started |
-| Supabase Edge Functions | ❌ Not started |
+| Meet & Greet conversation | ✅ Wired — real API, exchange counter, profile save after 8 turns |
+| Claude API chat integration | ✅ Complete |
+| Supabase Edge Functions (`chat`) | ✅ Complete — deploy required |
 | Session summary writing (incremental) | ❌ Not started |
 | Learner profile update after session | ❌ Not started |
 | Parent dashboard (dynamic data) | ❌ Still hardcoded HTML |
@@ -117,11 +118,64 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 
 1. **Run migration** — Jason runs `supabase/migrations/001_initial_schema.sql` in the Supabase SQL editor
 2. **Seed data** — Create parent + kid accounts in Supabase Auth; seed `profiles` table
-3. **Claude API Edge Function** — `chat` Edge Function: receives message + learner context, returns Quinn response
-4. **Wire `sendMessage()`** — Replace stub with real Edge Function call
-5. **Session summary system** — Incremental writes + inactivity timeout (5 min)
-6. **Learner profile update** — Post-session Claude call to update profile JSON
-7. **Parent dashboard** — Dynamic data from Supabase (kids, exams, summaries)
+3. **Deploy Edge Function** — `supabase functions deploy chat` from project root; set `ANTHROPIC_API_KEY` secret via `supabase secrets set ANTHROPIC_API_KEY=...`
+4. **Session summary system** — Incremental writes + inactivity timeout (5 min)
+5. **Learner profile update** — Post-session Haiku call to enrich profile JSON from conversation
+6. **Parent dashboard** — Dynamic data from Supabase (kids, exams, summaries)
+7. **Bella dyslexia font** — Apply OpenDyslexic when `learner_profile.stable.dyslexia_font === true`
+
+---
+
+---
+
+### Session 2 — March 20, 2026
+
+#### Pre-session state (review findings)
+
+- `sendMessage()` was a stub: fake 1.4s timeout returning a hardcoded placeholder string
+- Meet & Greet view was reachable but completely inert — no API call, opening message included the kid's name (wrong per PRD)
+- No Edge Functions existed
+- `conversationHistory` state did not exist — every send was stateless
+
+#### Work completed
+
+**1. Supabase Edge Function — `chat` (`supabase/functions/chat/index.ts`)**
+- Accepts POST: `{ message, kid_id, learner_profile, session_summaries, exams, conversation_history, is_first_meeting }`
+- Two-block system prompt with `cache_control: { type: "ephemeral" }` on both blocks for maximum cache hit rate
+  - Block 1: Core Quinn personality (identical for all kids — very high cache reuse)
+  - Block 2: Kid-specific context (stable within a conversation — caches for the session)
+- System prompt includes: Quinn identity rules, voice guidelines, exam proximity behavior (2+ wk / 1 wk / 2-3 day / day-before), academic context, recent session summaries with callback prompts, safety rules
+- `is_first_meeting` flag switches to a first-meeting-specific system prompt section — no profile data, different goals
+- Model: `claude-sonnet-4-6`, temperature 0.7
+- Error handling: catches all throws, returns a friendly fallback string with `status: 200` so client always gets a parseable response
+- CORS headers present for browser invocation via supabase-js
+
+**2. `sendMessage()` — real async implementation (`index.html`)**
+- Replaced stub with `async function sendMessage(view)`
+- `isSending` mutex prevents double-send while async call is in flight
+- Calls `supabase.functions.invoke('chat', { body })` with full context payload
+- Manages per-view history arrays (`conversationHistory`, `mgConversationHistory`), max 20 messages, trims oldest pair when over limit
+- Quinn animation state set from response content: `!` + celebration words → `celebrating`; ends with `?` → `curious`; default → `listening`
+- Error path: removes thinking indicator, shows gentle error message in chat
+
+**3. Meet & Greet wiring (`index.html`)**
+- Opening message corrected to exact PRD wording: "Hey — I'm Quinn. I've been looking forward to meeting you."
+- Both send buttons now call same `sendMessage()` function with `is_first_meeting: true` flag for `mg` view
+- `mgExchangeCount` tracks user turns; after 8+ turns, `saveMeetGreetProfile()` fires once (guarded by `mgProfileSaved` flag)
+- `saveMeetGreetProfile()`: writes minimal initial profile to `learner_profiles` via `upsert`, updates in-memory `learnerProfile`, resets MG state, routes to chat view with greeting
+
+**4. State reset on sign-out**
+- `signOut()` now resets: `conversationHistory`, `mgConversationHistory`, `mgExchangeCount`, `mgProfileSaved`, `isSending`
+
+#### Files changed
+- `supabase/functions/chat/index.ts` — **new**
+- `index.html` — sendMessage(), state vars, signOut(), saveMeetGreetProfile(), MG opening message
+- `HANDOFF.md` — this update
+
+#### Pending before this goes live
+- Run `supabase functions deploy chat` from project root
+- Set secret: `supabase secrets set ANTHROPIC_API_KEY=<key>`
+- Migration still needs to be run if not already done (Session 1 item)
 
 ---
 
