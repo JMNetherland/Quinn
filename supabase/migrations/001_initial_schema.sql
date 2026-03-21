@@ -63,9 +63,10 @@ CREATE TABLE IF NOT EXISTS exams (
   kid_id     uuid NOT NULL REFERENCES kids(id) ON DELETE CASCADE,
   subject    text NOT NULL,
   exam_type  text,           -- e.g. 'quiz', 'midterm', 'final'
-  exam_date  date NOT NULL,
-  notes      text,
-  created_at timestamptz NOT NULL DEFAULT now()
+  exam_date   date NOT NULL,
+  notes       text,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  archived_at timestamptz -- null = active; set to archive without deleting
 );
 
 -- ── study_materials ───────────────────────────────────────────────────────────
@@ -77,9 +78,9 @@ CREATE TABLE IF NOT EXISTS study_materials (
   source_type    text,     -- 'pdf' | 'youtube' | 'gdoc' | 'text'
   file_url       text,
   file_name      text,
-  gemini_summary text,
-  uploaded_at    timestamptz NOT NULL DEFAULT now(),
-  archived_at    timestamptz -- null = active; set to archive without deleting
+  material_summary text,
+  uploaded_at      timestamptz NOT NULL DEFAULT now(),
+  archived_at      timestamptz -- null = active; set to archive without deleting
 );
 
 -- ── parent_notes ──────────────────────────────────────────────────────────────
