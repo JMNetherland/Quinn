@@ -1084,7 +1084,7 @@ function toggleMic(view) {
   recognition.start();
 }
 
-function applyDyslexiaFont(profile_json) {
+async function applyDyslexiaFont(profile_json) {
   const enabled = profile_json?.stable?.dyslexia_font === true;
   document.body.classList.toggle('dyslexia-font', enabled);
   if (enabled) {
