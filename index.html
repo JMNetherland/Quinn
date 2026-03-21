@@ -521,7 +521,6 @@ html, body {
 
     <div class="signin-footer">
       <button type="button" class="signin-footer-link" onclick="forgotPassword()">Forgot password?</button>
-      <button type="button" class="signin-footer-link" onclick="showView('parent')">Parent access →</button>
     </div>
   </form>
 </div>
@@ -529,7 +528,7 @@ html, body {
 <!-- ══ CHAT ══════════════════════════════════════════════════════════════════ -->
 <div id="view-chat" class="view">
   <div class="chat-header">
-    <button class="back-btn" onclick="showView('signin')">←</button>
+    <button class="back-btn" onclick="signOut()">←</button>
     <span class="header-kid-name" id="chat-kid-label">—</span>
     <div class="header-dot"></div>
   </div>
@@ -548,7 +547,7 @@ html, body {
 <!-- ══ MEET & GREET ══════════════════════════════════════════════════════════ -->
 <div id="view-meetgreet" class="view">
   <div class="chat-header">
-    <button class="back-btn" onclick="showView('signin')">←</button>
+    <button class="back-btn" onclick="signOut()">←</button>
     <span class="header-kid-name">First meeting</span>
     <div class="header-dot"></div>
   </div>
@@ -567,8 +566,9 @@ html, body {
 <!-- ══ PARENT DASHBOARD ══════════════════════════════════════════════════════ -->
 <div id="view-parent" class="view">
   <div class="parent-header">
-    <button class="back-btn" onclick="showView('signin')">←</button>
+    <button class="back-btn" onclick="signOut()">←</button>
     <span class="parent-title">Quinn — Parent Overview</span>
+    <button type="button" class="signin-footer-link" onclick="signOut()" style="margin-left:auto">Sign out</button>
   </div>
   <div class="parent-body">
 
@@ -654,12 +654,24 @@ html, body {
 <!-- Quinn lives here — moved between view stages by the router -->
 <canvas id="quinn-cv" width="420" height="420"></canvas>
 
-<script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
 'use strict';
+
+// ── Supabase ──────────────────────────────────────────────────────────────────
+const SUPABASE_URL      = 'https://onevueekevfpniopuyhj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uZXZ1ZWVrZXZmcG5pb3B1eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NzE2OTQsImV4cCI6MjA4ODU0NzY5NH0.2anUmtXLnLa2biBK8vJ-9XjHYETYFAo-MJ_3Ph6tLk4';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── Session state ─────────────────────────────────────────────────────────────
+let currentKidRecord = null;  // row from kids table
+let learnerProfile   = null;  // row from learner_profiles
+let sessionSummaries = [];    // last 5 session_summaries for this kid
+let upcomingExams    = [];    // upcoming exams for this kid
 
 // ── Router ────────────────────────────────────────────────────────────────────
 let currentView = 'signin';
-let currentKid  = null;
 
 const STAGES = {
   signin:    { id: 'signin-stage',  size: () => Math.min(Math.round(window.innerWidth * 0.80), 340) + 'px' },
@@ -682,23 +694,115 @@ function showView(name) {
   }
 }
 
-// ── Sign-in handlers ──────────────────────────────────────────────────────────
-function handleSignIn(e) {
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+// Core routing logic — shared by handleSignIn and the session-restore check.
+async function routeUser(userId, errorEl) {
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles').select('*').eq('id', userId).single();
+
+  if (profileErr || !profile) {
+    if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
+    await supabase.auth.signOut();
+    return;
+  }
+
+  if (profile.is_parent) { showView('parent'); return; }
+
+  if (!profile.kid_id) {
+    if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
+    await supabase.auth.signOut();
+    return;
+  }
+
+  const { data: kid } = await supabase
+    .from('kids').select('*').eq('id', profile.kid_id).single();
+
+  if (!kid) {
+    if (errorEl) errorEl.textContent = 'Could not load your profile. Try again.';
+    await supabase.auth.signOut();
+    return;
+  }
+
+  currentKidRecord = kid;
+  document.getElementById('chat-kid-label').textContent = kid.name;
+
+  // Check for existing learner profile — determines first-run vs returning kid
+  const { data: lp } = await supabase
+    .from('learner_profiles').select('*').eq('kid_id', kid.id).single();
+
+  if (!lp) {
+    // First visit — route to meet & greet
+    document.getElementById('mg-messages').innerHTML = '';
+    addQuinnMsg('mg', `Hey ${kid.name}! I'm Quinn. I've been looking forward to meeting you.`);
+    showView('meetgreet');
+    return;
+  }
+
+  // Returning kid — load full context before routing to chat
+  learnerProfile = lp;
+
+  const [summaryRes, examRes] = await Promise.all([
+    supabase.from('session_summaries').select('*')
+      .eq('kid_id', kid.id)
+      .order('started_at', { ascending: false })
+      .limit(5),
+    supabase.from('exams').select('*')
+      .eq('kid_id', kid.id)
+      .gte('exam_date', new Date().toISOString().split('T')[0])
+      .order('exam_date', { ascending: true }),
+  ]);
+  sessionSummaries = summaryRes.data || [];
+  upcomingExams    = examRes.data   || [];
+
+  document.getElementById('chat-messages').innerHTML = '';
+  addQuinnMsg('chat', buildGreeting(kid, lp, sessionSummaries, upcomingExams));
+  showView('chat');
+}
+
+async function handleSignIn(e) {
   e.preventDefault();
-  const email = document.getElementById('signin-email').value.trim().toLowerCase();
-  const error = document.getElementById('signin-error');
-  error.textContent = '';
+  const errorEl = document.getElementById('signin-error');
+  errorEl.textContent = '';
+  errorEl.style.color = '';
 
-  // Placeholder auth — routes by email prefix until Supabase is wired
-  if (email.startsWith('mason'))       { selectKid('mason'); return; }
-  if (email.startsWith('joie'))        { selectKid('joie');  return; }
-  if (email.startsWith('bella'))       { selectKid('bella'); return; }
-  if (email.includes('parent') ||
-      email.includes('jason') ||
-      email.includes('keri'))          { showView('parent'); return; }
+  const { data, error: authErr } = await supabase.auth.signInWithPassword({
+    email:    document.getElementById('signin-email').value.trim(),
+    password: document.getElementById('signin-password').value,
+  });
+  if (authErr) { errorEl.textContent = authErr.message; return; }
 
-  // Default: show error (real auth will handle this properly)
-  error.textContent = 'Account not found.';
+  await routeUser(data.user.id, errorEl);
+}
+
+function buildGreeting(kid, lp, summaries, exams) {
+  const name = kid.name;
+  const pj   = lp.profile_json || {};
+  const last  = summaries[0];
+
+  if (last?.mood_close === 'stressed' || last?.mood_close === 'anxious') {
+    return `Hey ${name}. How are you feeling today?`;
+  }
+  if (exams.length > 0) {
+    const next    = exams[0];
+    const dateStr = new Date(next.exam_date + 'T12:00:00')
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `Hey ${name}! You've got ${next.subject} on ${dateStr}. Want to work on that, or something else on your mind?`;
+  }
+  const interests = pj.interests;
+  if (Array.isArray(interests) && interests.length > 0) {
+    return `Hey ${name}! Good to see you. Still into ${interests[0]}?`;
+  }
+  return `Hey ${name}! What's going on?`;
+}
+
+async function signOut() {
+  await supabase.auth.signOut();
+  currentKidRecord = null;
+  learnerProfile   = null;
+  sessionSummaries = [];
+  upcomingExams    = [];
+  showView('signin');
 }
 
 function togglePassword() {
@@ -708,28 +812,15 @@ function togglePassword() {
   else                           { input.type = 'password'; btn.textContent = 'show'; }
 }
 
-function forgotPassword() {
-  document.getElementById('signin-error').textContent = 'Password reset — coming soon.';
-}
-
-function selectKid(kid) {
-  currentKid = kid;
-  document.getElementById('chat-kid-label').textContent =
-    kid.charAt(0).toUpperCase() + kid.slice(1);
-
-  const msgs = document.getElementById('chat-messages');
-  msgs.innerHTML = '';
-  addQuinnMsg('chat', greetingFor(kid));
-  showView('chat');
-}
-
-function greetingFor(kid) {
-  const g = {
-    mason: "Hey Mason! Good to see you. What's going on today?",
-    joie:  "Hey Joie! What do you want to talk about?",
-    bella: "Hey. What's on your mind?",
-  };
-  return g[kid] || "Hey! What's going on?";
+async function forgotPassword() {
+  const email   = document.getElementById('signin-email').value.trim();
+  const errorEl = document.getElementById('signin-error');
+  if (!email) { errorEl.textContent = 'Enter your email first.'; return; }
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) { errorEl.textContent = error.message; return; }
+  errorEl.style.color = 'hsl(145,50%,50%)';
+  errorEl.textContent  = 'Reset link sent — check your email.';
+  setTimeout(() => { errorEl.style.color = ''; errorEl.textContent = ''; }, 5000);
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
@@ -795,6 +886,21 @@ function autoGrow(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 96) + 'px';
 }
+
+// ── Expose to HTML inline handlers ───────────────────────────────────────────
+window.handleSignIn   = handleSignIn;
+window.togglePassword = togglePassword;
+window.forgotPassword = forgotPassword;
+window.showView       = showView;
+window.signOut        = signOut;
+window.sendMessage    = sendMessage;
+window.handleKey      = handleKey;
+window.autoGrow       = autoGrow;
+
+// Auto-route if a session already exists (handles page refresh while logged in)
+supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session?.user) routeUser(session.user.id);
+});
 
 // ── Quinn state ───────────────────────────────────────────────────────────────
 let quinnState = 'listening';
