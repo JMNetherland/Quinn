@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=Figtree:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/opendyslexic" rel="stylesheet">
 <style>
 
 /* ── Reset ──────────────────────────────────────────────────────────────────── */
@@ -38,6 +39,16 @@ html, body {
   font-size: 15px;
   line-height: 1.6;
   overflow: hidden;
+}
+
+/* Dyslexia-friendly font — applied per-kid when stable.dyslexia_font === true */
+body.dyslexia-font,
+body.dyslexia-font button,
+body.dyslexia-font textarea,
+body.dyslexia-font input {
+  font-family: 'OpenDyslexic', sans-serif;
+  line-height: 1.8;
+  letter-spacing: 0.03em;
 }
 
 /* ── View system ────────────────────────────────────────────────────────────── */
@@ -639,8 +650,9 @@ html, body {
 .upload-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .upload-status {
   font-family: 'Syne', sans-serif; font-size: 0.52rem;
-  letter-spacing: 0.1em; color: var(--text-3);
+  letter-spacing: 0.1em; color: var(--text-2);
 }
+.upload-status.error { color: #e05c5c; }
 
 .note-item {
   padding: 10px 12px;
@@ -894,6 +906,7 @@ async function routeUser(userId, errorEl) {
   lastSummaryAt         = 0;
   sessionEnded          = false;
 
+  applyDyslexiaFont(lp?.profile_json);
   document.getElementById('chat-messages').innerHTML = '';
   addQuinnMsg('chat', buildGreeting(kid, lp, sessionSummaries, upcomingExams));
   showView('chat');
@@ -935,7 +948,12 @@ function buildGreeting(kid, lp, summaries, exams) {
   return `Hey ${name}! What's going on?`;
 }
 
+function applyDyslexiaFont(profile_json) {
+  document.body.classList.toggle('dyslexia-font', profile_json?.stable?.dyslexia_font === true);
+}
+
 async function signOut() {
+  document.body.classList.remove('dyslexia-font');
   if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
   await supabase.auth.signOut();
   currentKidRecord      = null;
@@ -1634,11 +1652,13 @@ async function uploadMaterial(kidId) {
   const subject    = subjInput.value.trim();
 
   if (!file || !subject) {
+    statusEl.classList.add('error');
     statusEl.textContent = 'Select a PDF and enter a subject.';
     return;
   }
 
   statusEl.textContent = 'Uploading…';
+  statusEl.classList.remove('error');
 
   try {
     // 1. Upload to Supabase Storage
@@ -1684,10 +1704,11 @@ async function uploadMaterial(kidId) {
     fileInput.value = '';
     subjInput.value = '';
     statusEl.textContent = 'Uploaded successfully.';
-    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    setTimeout(() => { statusEl.textContent = ''; statusEl.classList.remove('error'); }, 3000);
   } catch (err) {
     console.error('uploadMaterial error:', err);
-    statusEl.textContent = 'Upload failed — check console.';
+    statusEl.classList.add('error');
+    statusEl.textContent = `Upload failed: ${err?.message || err?.error_description || JSON.stringify(err)}`;
   }
 }
 
