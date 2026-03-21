@@ -1116,11 +1116,12 @@ async function saveMeetGreetProfile() {
     interests: [],
   };
 
-  await supabase.from('learner_profiles').upsert({
-    kid_id:     currentKidRecord.id,
+  const { error: profileSaveError } = await supabase.from('learner_profiles').upsert({
+    kid_id:       currentKidRecord.id,
     profile_json: initialProfile,
-    updated_at: new Date().toISOString(),
-  });
+    updated_at:   new Date().toISOString(),
+  }, { onConflict: 'kid_id' });
+  if (profileSaveError) console.error('[Quinn] learner_profiles upsert failed:', profileSaveError);
 
   // Update in-memory state so the chat view has a profile to work with
   learnerProfile = { kid_id: currentKidRecord.id, profile_json: initialProfile };
