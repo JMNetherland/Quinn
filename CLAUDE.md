@@ -15,7 +15,7 @@ Key principle: Rapport and trust come first. Education follows naturally. Quinn 
 | Piece | Tool |
 |---|---|
 | AI conversation | Claude API (Sonnet 4.6 for live chat, Haiku 4.5 for summaries/profile updates) |
-| Document processing | Gemini API (large context for ingesting school materials) |
+| Document ingestion | Claude Sonnet 4.6 (200K context — no Gemini; one API, one key, one SDK) |
 | Database + auth + storage | Supabase (Postgres, Auth, Storage) |
 | Front end | Single HTML file — GitHub Pages |
 | Quinn visual | Canvas or WebGL animation (TBD) |
@@ -40,7 +40,7 @@ session_summaries  — id, kid_id, started_at, ended_at, duration_minutes,
                      personal_notes, readiness_estimate, communication_notes
 exams              — id, kid_id, subject, exam_type, exam_date, notes, created_at
 study_materials    — id, kid_id, subject, source_type (pdf/youtube/gdoc/text),
-                     file_url, file_name, gemini_summary, uploaded_at, archived_at
+                     file_url, file_name, material_summary, uploaded_at, archived_at
 parent_notes       — id, kid_id, note, created_at
 ```
 
@@ -48,7 +48,7 @@ parent_notes       — id, kid_id, note, created_at
 
 ### Claude API Patterns
 - **Prompt caching** must be enabled — system prompt + learner profile load every conversation (90% savings on cached tokens)
-- **Model routing**: Sonnet 4.6 for live Quinn conversation only; Haiku 4.5 for session summary writes, learner profile updates, document ingestion tasks
+- **Model routing**: Sonnet 4.6 for live Quinn conversation and document ingestion; Haiku 4.5 for session summary writes and learner profile updates
 - **temperature=0.7** for Quinn conversation (warmth + consistency); **temperature=0.2** for structured outputs (summaries, profile JSON updates)
 - All Claude API calls must be routed through **Supabase Edge Functions** — never expose API keys in client-side JS
 
@@ -77,7 +77,7 @@ Tone is driven by the learner profile and age — not hardcoded persona switchin
 - **No gamification** — no XP, coins, badges, or points. Different emotional register than Daily Quest.
 - **Parents cannot see full transcripts** — dashboard shows summaries and academic data only. This trust boundary must be maintained in all UI decisions.
 - **Zero sibling visibility** — child profiles are fully isolated. No cross-profile data exposure anywhere in the UI or API calls.
-- **All API keys via Supabase Edge Functions** — Claude API key, Gemini API key. Never in client JS.
+- **All API keys via Supabase Edge Functions** — ANTHROPIC_API_KEY only. No Gemini key. Never in client JS.
 - **No external links** from Quinn conversation — no sending kids to external websites.
 - **Emotional disclosures** — Quinn listens and validates but always redirects serious issues to trusted adults. Soft parent dashboard alert (not content — just a flag to check in).
 
@@ -90,7 +90,7 @@ Tone is driven by the learner profile and age — not hardcoded persona switchin
 ## Skills & Tools to Have Active
 - `frontend-design` skill — before any UI work
 - `feature-dev` skill — for structured multi-phase implementation
-- Context7 MCP — for up-to-date Supabase/Claude API/Gemini API docs
+- Context7 MCP — for up-to-date Supabase/Claude API docs
 - Supabase MCP — for direct DB access during development
 
 ## Custom Quinn Skills to Build (in order)

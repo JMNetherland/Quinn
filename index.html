@@ -490,6 +490,166 @@ html, body {
   margin-left: auto;
 }
 
+/* ── Parent dashboard — dynamic components ───────────────────────────────── */
+.parent-loading {
+  color: var(--text-3);
+  font-family: 'Syne', sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 48px 0;
+}
+
+.kid-sections { display: flex; flex-direction: column; gap: 14px; }
+
+.kid-section { display: flex; flex-direction: column; }
+
+.kid-card-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; margin-bottom: 4px;
+}
+
+.exam-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.exam-pill {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.5rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px; border-radius: 4px;
+  background: var(--accent-dim); color: var(--accent);
+  border: 1px solid var(--accent-subtle); white-space: nowrap;
+  transition: background 0.8s ease, color 0.8s ease, border-color 0.8s ease;
+}
+
+.btn-detail-toggle {
+  flex-shrink: 0;
+  background: none; border: 1px solid var(--border-2); border-radius: 5px;
+  color: var(--text-3);
+  font-family: 'Syne', sans-serif; font-size: 0.5rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 4px 10px;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-detail-toggle:hover { border-color: var(--accent); color: var(--text-2); }
+.btn-detail-toggle.open { border-color: var(--accent); color: var(--accent); }
+.kid-card.detail-open { border-radius: 12px 12px 0 0; }
+
+.kid-detail {
+  background: var(--surface); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 12px 12px;
+  padding: 20px; display: flex; flex-direction: column; gap: 22px;
+}
+
+.detail-section { display: flex; flex-direction: column; gap: 8px; }
+
+.section-sub-label {
+  font-family: 'Syne', sans-serif; font-size: 0.52rem; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-3);
+}
+
+.exam-mgmt-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.exam-mgmt-date {
+  font-family: 'Syne', sans-serif; font-size: 0.54rem; font-weight: 600;
+  letter-spacing: 0.12em; color: var(--accent); min-width: 46px;
+  transition: color 0.8s ease;
+}
+.exam-mgmt-subject { font-size: 0.82rem; color: var(--text); flex: 1; }
+.exam-mgmt-type {
+  font-family: 'Syne', sans-serif; font-size: 0.5rem;
+  letter-spacing: 0.08em; color: var(--text-3); text-transform: capitalize;
+}
+
+.btn-sm {
+  background: none; border: 1px solid var(--border-2); border-radius: 4px;
+  color: var(--text-3); font-family: 'Syne', sans-serif;
+  font-size: 0.48rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 3px 7px; transition: border-color 0.2s, color 0.2s; cursor: pointer; flex-shrink: 0;
+}
+.btn-sm-danger:hover { border-color: hsl(0,55%,52%); color: hsl(0,55%,52%); }
+
+.add-exam-toggle {
+  background: none; border: 1px dashed var(--border-2); border-radius: 6px;
+  color: var(--text-3); font-family: 'Syne', sans-serif;
+  font-size: 0.5rem; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 7px; width: 100%; text-align: center;
+  transition: border-color 0.2s, color 0.2s; cursor: pointer;
+}
+.add-exam-toggle:hover { border-color: var(--accent); color: var(--text-2); }
+.add-exam-form { display: none; flex-direction: column; gap: 8px; margin-top: 2px; }
+.add-exam-form.open { display: flex; }
+.form-row { display: flex; gap: 8px; }
+
+.dash-input {
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  border-radius: 6px; padding: 8px 11px; color: var(--text);
+  font-family: 'Figtree', sans-serif; font-size: 0.82rem;
+  outline: none; width: 100%; transition: border-color 0.2s;
+}
+.dash-input:focus { border-color: var(--accent); }
+.dash-input::placeholder { color: var(--text-3); }
+
+.dash-select {
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  border-radius: 6px; padding: 8px 11px; color: var(--text);
+  font-family: 'Figtree', sans-serif; font-size: 0.82rem;
+  outline: none; cursor: pointer; transition: border-color 0.2s;
+}
+
+.btn-primary-sm {
+  background: var(--accent); border: none; border-radius: 6px;
+  color: #07070f; font-family: 'Syne', sans-serif;
+  font-size: 0.58rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+  padding: 8px 14px; white-space: nowrap; transition: opacity 0.2s; cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-primary-sm:hover { opacity: 0.85; }
+
+.material-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+}
+.material-subject {
+  font-family: 'Syne', sans-serif; font-size: 0.5rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3);
+  min-width: 60px; flex-shrink: 0;
+}
+.material-name {
+  flex: 1; font-size: 0.8rem; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.upload-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.upload-status {
+  font-family: 'Syne', sans-serif; font-size: 0.52rem;
+  letter-spacing: 0.1em; color: var(--text-3);
+}
+
+.note-item {
+  padding: 10px 12px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+}
+.note-text { font-size: 0.82rem; color: var(--text); line-height: 1.6; }
+.note-time {
+  font-family: 'Syne', sans-serif; font-size: 0.5rem;
+  letter-spacing: 0.1em; color: var(--text-3); margin-top: 4px;
+}
+.note-input {
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  border-radius: 6px; padding: 10px 12px; color: var(--text);
+  font-family: 'Figtree', sans-serif; font-size: 0.82rem; line-height: 1.6;
+  outline: none; width: 100%; resize: vertical; min-height: 68px;
+  transition: border-color 0.2s;
+}
+.note-input:focus { border-color: var(--accent); }
+.note-input::placeholder { color: var(--text-3); }
+.empty-state { color: var(--text-3); font-size: 0.78rem; font-style: italic; }
+
 </style>
 </head>
 <body>
@@ -570,85 +730,7 @@ html, body {
     <span class="parent-title">Quinn — Parent Overview</span>
     <button type="button" class="signin-footer-link" onclick="signOut()" style="margin-left:auto">Sign out</button>
   </div>
-  <div class="parent-body">
-
-    <div>
-      <div class="section-label">Kids</div>
-      <div class="kid-cards">
-
-        <div class="kid-card">
-          <div class="kid-card-name">Mason</div>
-          <div class="kid-card-meta">Age 10 · Grade 5</div>
-          <div class="subject-row">
-            <span class="subject-label">Math</span>
-            <div class="bar-bg"><div class="bar-fill" style="width:38%"></div></div>
-            <span class="bar-pct">38%</span>
-          </div>
-          <div class="subject-row">
-            <span class="subject-label">Science</span>
-            <div class="bar-bg"><div class="bar-fill" style="width:71%"></div></div>
-            <span class="bar-pct">71%</span>
-          </div>
-          <div class="kid-card-last">Last active today</div>
-        </div>
-
-        <div class="kid-card">
-          <div class="kid-card-name">Joie</div>
-          <div class="kid-card-meta">Age 13 · Grade 8</div>
-          <div class="subject-row">
-            <span class="subject-label">English</span>
-            <div class="bar-bg"><div class="bar-fill" style="width:80%"></div></div>
-            <span class="bar-pct">80%</span>
-          </div>
-          <div class="subject-row">
-            <span class="subject-label">History</span>
-            <div class="bar-bg"><div class="bar-fill" style="width:54%"></div></div>
-            <span class="bar-pct">54%</span>
-          </div>
-          <div class="kid-card-last">Last active yesterday</div>
-        </div>
-
-        <div class="kid-card">
-          <div class="kid-card-name">Bella</div>
-          <div class="kid-card-meta">Age 15 · Grade 10</div>
-          <div class="subject-row">
-            <span class="subject-label">Chemistry</span>
-            <div class="bar-bg"><div class="bar-fill" style="width:62%"></div></div>
-            <span class="bar-pct">62%</span>
-          </div>
-          <div class="subject-row">
-            <span class="subject-label">Algebra II</span>
-            <div class="bar-bg"><div class="bar-fill" style="width:46%"></div></div>
-            <span class="bar-pct">46%</span>
-          </div>
-          <div class="kid-card-last">Last active 2 days ago</div>
-        </div>
-
-      </div>
-    </div>
-
-    <div>
-      <div class="section-label">Upcoming exams</div>
-      <div class="exam-list">
-        <div class="exam-item">
-          <span class="exam-date">MAR 24</span>
-          <span class="exam-subject">Fractions Quiz</span>
-          <span class="exam-who">Mason</span>
-        </div>
-        <div class="exam-item">
-          <span class="exam-date">MAR 27</span>
-          <span class="exam-subject">Chapter 7 — Civil War</span>
-          <span class="exam-who">Joie</span>
-        </div>
-        <div class="exam-item">
-          <span class="exam-date">APR 3</span>
-          <span class="exam-subject">Chemistry Midterm</span>
-          <span class="exam-who">Bella</span>
-        </div>
-      </div>
-    </div>
-
-  </div>
+  <div class="parent-body" id="parent-body"></div>
 </div>
 
 <!-- Quinn lives here — moved between view stages by the router -->
@@ -669,6 +751,14 @@ let currentKidRecord = null;  // row from kids table
 let learnerProfile   = null;  // row from learner_profiles
 let sessionSummaries = [];    // last 5 session_summaries for this kid
 let upcomingExams    = [];    // upcoming exams for this kid
+
+// ── Parent dashboard state ─────────────────────────────────────────────────────
+let parentData = {};  // kid_id -> { kid, profile, summaries, exams, materials, notes }
+let parentKids = [];  // all kids for this parent
+
+// ── Kid context injected into chat (loaded when kid logs in) ──────────────────
+let parentNotes      = [];  // recent parent_notes rows
+let materialSummaries = []; // non-archived study_materials summaries
 
 // ── Conversation state ─────────────────────────────────────────────────────────
 let conversationHistory   = [];    // chat view — in-memory [{role,content}], max 20
@@ -722,7 +812,7 @@ async function routeUser(userId, errorEl) {
     return;
   }
 
-  if (profile.is_parent) { showView('parent'); return; }
+  if (profile.is_parent) { showView('parent'); loadParentDashboard(); return; }
 
   if (!profile.kid_id) {
     if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
@@ -757,18 +847,30 @@ async function routeUser(userId, errorEl) {
   // Returning kid — load full context before routing to chat
   learnerProfile = lp;
 
-  const [summaryRes, examRes] = await Promise.all([
+  const today = new Date().toISOString().split('T')[0];
+  const [summaryRes, examRes, notesRes, materialsRes] = await Promise.all([
     supabase.from('session_summaries').select('*')
       .eq('kid_id', kid.id)
       .order('started_at', { ascending: false })
       .limit(5),
     supabase.from('exams').select('*')
       .eq('kid_id', kid.id)
-      .gte('exam_date', new Date().toISOString().split('T')[0])
+      .gte('exam_date', today)
       .order('exam_date', { ascending: true }),
+    supabase.from('parent_notes').select('note, created_at')
+      .eq('kid_id', kid.id)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase.from('study_materials').select('subject, material_summary, file_name')
+      .eq('kid_id', kid.id)
+      .is('archived_at', null)
+      .not('material_summary', 'is', null),
   ]);
-  sessionSummaries = summaryRes.data || [];
-  upcomingExams    = examRes.data   || [];
+  sessionSummaries  = summaryRes.data  || [];
+  upcomingExams     = examRes.data     || [];
+  parentNotes       = notesRes.data    || [];
+  materialSummaries = (materialsRes.data || [])
+    .map(m => ({ subject: m.subject, summary: m.material_summary, filename: m.file_name }));
 
   sessionStartedAt      = new Date().toISOString();
   currentSessionSummary = null;
@@ -823,6 +925,10 @@ async function signOut() {
   learnerProfile        = null;
   sessionSummaries      = [];
   upcomingExams         = [];
+  parentNotes           = [];
+  materialSummaries     = [];
+  parentData            = {};
+  parentKids            = [];
   conversationHistory   = [];
   mgConversationHistory = [];
   mgExchangeCount       = 0;
@@ -915,6 +1021,8 @@ async function sendMessage(view) {
       session_summaries:    sessionSummaries,
       exams:                upcomingExams,
       conversation_history: [...history],
+      parent_notes:         parentNotes,
+      material_summaries:   materialSummaries,
     };
     if (view === 'mg') body.is_first_meeting = true;
 
@@ -1131,15 +1239,479 @@ function autoGrow(el) {
   el.style.height = Math.min(el.scrollHeight, 96) + 'px';
 }
 
+// ── Parent dashboard ──────────────────────────────────────────────────────────
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function loadParentDashboard() {
+  const bodyEl = document.getElementById('parent-body');
+  bodyEl.innerHTML = '<div class="parent-loading">Loading…</div>';
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: kids, error } = await supabase
+    .from('kids').select('*').eq('parent_id', user.id).order('name');
+
+  if (error || !kids?.length) {
+    bodyEl.innerHTML = '<div class="parent-loading">No kids found — add kid accounts in Supabase.</div>';
+    return;
+  }
+
+  parentKids = kids;
+  parentData = {};
+
+  const today = new Date().toISOString().split('T')[0];
+
+  await Promise.all(parentKids.map(async (kid) => {
+    const [profileRes, summaryRes, examRes, materialRes, noteRes] = await Promise.all([
+      supabase.from('learner_profiles').select('*').eq('kid_id', kid.id).single(),
+      supabase.from('session_summaries').select('*').eq('kid_id', kid.id)
+        .order('started_at', { ascending: false }).limit(3),
+      supabase.from('exams').select('*').eq('kid_id', kid.id)
+        .gte('exam_date', today).is('archived_at', null)
+        .order('exam_date', { ascending: true }),
+      supabase.from('study_materials').select('*').eq('kid_id', kid.id)
+        .is('archived_at', null).order('uploaded_at', { ascending: false }),
+      supabase.from('parent_notes').select('*').eq('kid_id', kid.id)
+        .order('created_at', { ascending: false }).limit(3),
+    ]);
+    parentData[kid.id] = {
+      kid,
+      profile:   profileRes.data  || null,
+      summaries: summaryRes.data  || [],
+      exams:     examRes.data     || [],
+      materials: materialRes.data || [],
+      notes:     noteRes.data     || [],
+    };
+  }));
+
+  renderParentDashboard();
+}
+
+function renderParentDashboard() {
+  const bodyEl = document.getElementById('parent-body');
+  bodyEl.innerHTML = '';
+
+  // Kid sections
+  const kidsWrap = document.createElement('div');
+  const kidsLabel = document.createElement('div');
+  kidsLabel.className = 'section-label';
+  kidsLabel.textContent = 'Kids';
+  kidsWrap.appendChild(kidsLabel);
+
+  const kidSections = document.createElement('div');
+  kidSections.className = 'kid-sections';
+  parentKids.forEach(kid => kidSections.appendChild(renderKidSection(parentData[kid.id])));
+  kidsWrap.appendChild(kidSections);
+  bodyEl.appendChild(kidsWrap);
+
+  // Aggregate upcoming exams
+  const allExamsWrap = document.createElement('div');
+  allExamsWrap.id = 'all-exams-section';
+  bodyEl.appendChild(allExamsWrap);
+  renderAllExams();
+}
+
+function renderAllExams() {
+  const wrap = document.getElementById('all-exams-section');
+  if (!wrap) return;
+
+  const allExams = [];
+  parentKids.forEach(kid => {
+    (parentData[kid.id]?.exams || []).forEach(e => allExams.push({ ...e, kidName: kid.name }));
+  });
+  allExams.sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date));
+
+  wrap.innerHTML = '';
+  if (allExams.length === 0) return;
+
+  const label = document.createElement('div');
+  label.className = 'section-label';
+  label.textContent = 'Upcoming Exams';
+  wrap.appendChild(label);
+
+  const list = document.createElement('div');
+  list.className = 'exam-list';
+  allExams.slice(0, 10).forEach(e => {
+    const dateStr = new Date(e.exam_date + 'T12:00:00')
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+    const item = document.createElement('div');
+    item.className = 'exam-item';
+    item.innerHTML = `<span class="exam-date">${dateStr}</span>`
+      + `<span class="exam-subject">${escHtml(e.subject)}${e.exam_type ? ` — ${escHtml(e.exam_type)}` : ''}</span>`
+      + `<span class="exam-who">${escHtml(e.kidName)}</span>`;
+    list.appendChild(item);
+  });
+  wrap.appendChild(list);
+}
+
+function renderKidSection(d) {
+  if (!d) return document.createElement('div');
+  const { kid, profile, summaries, exams } = d;
+  const pj = profile?.profile_json || {};
+
+  // Readiness bars — prefer readiness_estimate from most recent summary
+  const readiness = {};
+  const latestSummary = summaries[0];
+  if (latestSummary?.readiness_estimate && typeof latestSummary.readiness_estimate === 'object') {
+    Object.entries(latestSummary.readiness_estimate).forEach(([subj, score]) => {
+      readiness[subj] = Math.round((Number(score) / 5) * 100);
+    });
+  }
+  if (Object.keys(readiness).length === 0 && pj.academic) {
+    (pj.academic.strong_subjects || []).forEach(s => { readiness[s] = 75; });
+    (pj.academic.weak_subjects   || []).forEach(s => { if (!readiness[s]) readiness[s] = 35; });
+  }
+
+  // Last active
+  let lastActive = 'No sessions yet';
+  const rawDate = pj.current_state?.last_active || kid.last_active_at;
+  if (rawDate) {
+    const d2 = new Date(rawDate);
+    const diffDays = Math.floor((Date.now() - d2.getTime()) / 86400000);
+    if (diffDays === 0)      lastActive = 'Active today';
+    else if (diffDays === 1) lastActive = 'Active yesterday';
+    else if (diffDays < 7)  lastActive = `Active ${diffDays} days ago`;
+    else                    lastActive = `Last active ${d2.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
+
+  // Readiness bars HTML
+  let barsHTML = '';
+  Object.entries(readiness).slice(0, 4).forEach(([subj, pct]) => {
+    barsHTML += `<div class="subject-row">
+      <span class="subject-label">${escHtml(subj)}</span>
+      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <span class="bar-pct">${pct}%</span>
+    </div>`;
+  });
+
+  // Upcoming exam pills (next 2)
+  let pillsHTML = '';
+  if (exams.length > 0) {
+    pillsHTML = '<div class="exam-pills">';
+    exams.slice(0, 2).forEach(e => {
+      const ds = new Date(e.exam_date + 'T12:00:00')
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      pillsHTML += `<span class="exam-pill">${ds} · ${escHtml(e.subject)}</span>`;
+    });
+    pillsHTML += '</div>';
+  }
+
+  const section = document.createElement('div');
+  section.className = 'kid-section';
+  section.id = `kid-section-${kid.id}`;
+
+  // Card
+  const card = document.createElement('div');
+  card.className = 'kid-card';
+  card.id = `kid-card-${kid.id}`;
+  card.innerHTML = `
+    <div class="kid-card-header">
+      <div>
+        <div class="kid-card-name">${escHtml(kid.name)}</div>
+        <div class="kid-card-meta">Age ${kid.age} · Grade ${escHtml(kid.grade)}</div>
+      </div>
+      <button class="btn-detail-toggle" id="toggle-btn-${kid.id}" onclick="toggleKidDetail('${kid.id}')">Details</button>
+    </div>
+    ${barsHTML}
+    ${pillsHTML}
+    <div class="kid-card-last">${lastActive}</div>`;
+  section.appendChild(card);
+
+  // Expandable detail panel (hidden by default)
+  const detail = document.createElement('div');
+  detail.className = 'kid-detail';
+  detail.id = `kid-detail-${kid.id}`;
+  detail.hidden = true;
+  detail.innerHTML = buildKidDetailHTML(d);
+  section.appendChild(detail);
+
+  return section;
+}
+
+function buildKidDetailHTML(d) {
+  const { kid, exams, materials, notes } = d;
+  const kidId = kid.id;
+
+  // Exam list
+  const examItemsHTML = exams.length === 0
+    ? '<div class="empty-state">No upcoming exams.</div>'
+    : exams.map(e => {
+        const ds = new Date(e.exam_date + 'T12:00:00')
+          .toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+        return `<div class="exam-mgmt-item" id="exam-item-${e.id}">
+          <span class="exam-mgmt-date">${ds}</span>
+          <span class="exam-mgmt-subject">${escHtml(e.subject)}</span>
+          ${e.exam_type ? `<span class="exam-mgmt-type">${escHtml(e.exam_type)}</span>` : ''}
+          <button class="btn-sm btn-sm-danger" onclick="deleteExam('${e.id}','${kidId}')">Remove</button>
+        </div>`;
+      }).join('');
+
+  // Materials list
+  const materialItemsHTML = materials.length === 0
+    ? '<div class="empty-state">No materials uploaded yet.</div>'
+    : materials.map(m => `<div class="material-item" id="material-item-${m.id}">
+        <span class="material-subject">${escHtml(m.subject)}</span>
+        <span class="material-name">${escHtml(m.file_name)}</span>
+        <button class="btn-sm btn-sm-danger" onclick="archiveMaterial('${m.id}','${kidId}')">Remove</button>
+      </div>`).join('');
+
+  // Notes list
+  const noteItemsHTML = notes.length === 0
+    ? '<div class="empty-state">No notes yet.</div>'
+    : notes.map(n => {
+        const ds = new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `<div class="note-item">
+          <div class="note-text">${escHtml(n.note)}</div>
+          <div class="note-time">${ds}</div>
+        </div>`;
+      }).join('');
+
+  return `
+    <div class="detail-section">
+      <div class="section-sub-label">Exams</div>
+      <div id="exam-mgmt-list-${kidId}">${examItemsHTML}</div>
+      <button class="add-exam-toggle" onclick="toggleAddExamForm('${kidId}')">+ Add exam</button>
+      <div class="add-exam-form" id="add-exam-form-${kidId}">
+        <div class="form-row">
+          <input class="dash-input" placeholder="Subject" id="exam-subject-${kidId}">
+          <select class="dash-select" id="exam-type-${kidId}">
+            <option value="quiz">Quiz</option>
+            <option value="test">Test</option>
+            <option value="midterm">Midterm</option>
+            <option value="final">Final</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input class="dash-input" type="date" id="exam-date-${kidId}" style="flex:1">
+          <button class="btn-primary-sm" onclick="addExam('${kidId}')">Add exam</button>
+        </div>
+        <textarea class="dash-input" placeholder="Notes (optional)" id="exam-notes-${kidId}" rows="2" style="resize:vertical"></textarea>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="section-sub-label">Study Materials</div>
+      <div id="material-list-${kidId}">${materialItemsHTML}</div>
+      <div class="upload-row">
+        <input class="dash-input" type="file" id="material-file-${kidId}" accept=".pdf" style="flex:1;min-width:120px;padding:6px 11px">
+        <input class="dash-input" placeholder="Subject" id="material-subject-${kidId}" style="flex:1;min-width:100px">
+        <button class="btn-primary-sm" onclick="uploadMaterial('${kidId}')">Upload PDF</button>
+      </div>
+      <div class="upload-status" id="upload-status-${kidId}"></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="section-sub-label">Notes for Quinn</div>
+      <div id="notes-list-${kidId}">${noteItemsHTML}</div>
+      <textarea class="note-input" id="note-text-${kidId}" placeholder="Context Quinn should know about ${escHtml(kid.name)}…"></textarea>
+      <button class="btn-primary-sm" onclick="saveParentNote('${kidId}')" style="align-self:flex-end;margin-top:4px">Save note</button>
+    </div>`;
+}
+
+function toggleKidDetail(kidId) {
+  const detail = document.getElementById(`kid-detail-${kidId}`);
+  const btn    = document.getElementById(`toggle-btn-${kidId}`);
+  const card   = document.getElementById(`kid-card-${kidId}`);
+  const isOpen = !detail.hidden;
+  detail.hidden = isOpen;
+  btn.classList.toggle('open', !isOpen);
+  card.classList.toggle('detail-open', !isOpen);
+}
+
+function toggleAddExamForm(kidId) {
+  document.getElementById(`add-exam-form-${kidId}`).classList.toggle('open');
+}
+
+async function addExam(kidId) {
+  const subject  = document.getElementById(`exam-subject-${kidId}`).value.trim();
+  const examType = document.getElementById(`exam-type-${kidId}`).value;
+  const examDate = document.getElementById(`exam-date-${kidId}`).value;
+  const notes    = document.getElementById(`exam-notes-${kidId}`).value.trim();
+  if (!subject || !examDate) return;
+
+  const { data, error } = await supabase.from('exams').insert({
+    kid_id: kidId, subject, exam_type: examType,
+    exam_date: examDate, notes: notes || null,
+  }).select().single();
+  if (error || !data) return;
+
+  parentData[kidId].exams.push(data);
+  parentData[kidId].exams.sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date));
+
+  document.getElementById(`exam-subject-${kidId}`).value = '';
+  document.getElementById(`exam-date-${kidId}`).value   = '';
+  document.getElementById(`exam-notes-${kidId}`).value  = '';
+  toggleAddExamForm(kidId);
+
+  refreshExamList(kidId);
+  renderAllExams();
+}
+
+async function deleteExam(examId, kidId) {
+  const { error } = await supabase.from('exams')
+    .update({ archived_at: new Date().toISOString() }).eq('id', examId);
+  if (error) return;
+  parentData[kidId].exams = parentData[kidId].exams.filter(e => e.id !== examId);
+  refreshExamList(kidId);
+  renderAllExams();
+}
+
+function refreshExamList(kidId) {
+  const listEl = document.getElementById(`exam-mgmt-list-${kidId}`);
+  if (!listEl) return;
+  const exams = parentData[kidId]?.exams || [];
+  if (exams.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">No upcoming exams.</div>';
+    return;
+  }
+  listEl.innerHTML = exams.map(e => {
+    const ds = new Date(e.exam_date + 'T12:00:00')
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+    return `<div class="exam-mgmt-item" id="exam-item-${e.id}">
+      <span class="exam-mgmt-date">${ds}</span>
+      <span class="exam-mgmt-subject">${escHtml(e.subject)}</span>
+      ${e.exam_type ? `<span class="exam-mgmt-type">${escHtml(e.exam_type)}</span>` : ''}
+      <button class="btn-sm btn-sm-danger" onclick="deleteExam('${e.id}','${kidId}')">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+async function uploadMaterial(kidId) {
+  const fileInput  = document.getElementById(`material-file-${kidId}`);
+  const subjInput  = document.getElementById(`material-subject-${kidId}`);
+  const statusEl   = document.getElementById(`upload-status-${kidId}`);
+  const file       = fileInput.files[0];
+  const subject    = subjInput.value.trim();
+
+  if (!file || !subject) {
+    statusEl.textContent = 'Select a PDF and enter a subject.';
+    return;
+  }
+
+  statusEl.textContent = 'Uploading…';
+
+  try {
+    // 1. Upload to Supabase Storage
+    const storagePath = `${kidId}/${subject}/${file.name}`;
+    const { error: storageErr } = await supabase.storage
+      .from('study-materials').upload(storagePath, file, { upsert: true });
+    if (storageErr) throw storageErr;
+
+    const { data: urlData } = supabase.storage.from('study-materials').getPublicUrl(storagePath);
+    const fileUrl = urlData?.publicUrl || '';
+
+    // 2. Convert PDF to base64 (chunked to avoid call stack limits)
+    statusEl.textContent = 'Processing with Claude…';
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const pdfBase64 = btoa(binary);
+
+    // 3. Call ingest-material edge function
+    const profile = parentData[kidId]?.profile?.profile_json || null;
+    const { data: ingestData, error: ingestErr } = await supabase.functions.invoke('ingest-material', {
+      body: { kid_id: kidId, subject, pdf_base64: pdfBase64, filename: file.name, learner_profile: profile },
+    });
+    if (ingestErr) throw ingestErr;
+
+    // 4. Insert study_materials record
+    const { data: matData, error: matErr } = await supabase.from('study_materials').insert({
+      kid_id: kidId, subject, source_type: 'pdf',
+      file_url: fileUrl, file_name: file.name,
+      material_summary: ingestData?.summary || null,
+    }).select().single();
+    if (matErr) throw matErr;
+
+    parentData[kidId].materials.unshift(matData);
+    refreshMaterialList(kidId);
+    fileInput.value = '';
+    subjInput.value = '';
+    statusEl.textContent = 'Uploaded successfully.';
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+  } catch (err) {
+    console.error('uploadMaterial error:', err);
+    statusEl.textContent = 'Upload failed — check console.';
+  }
+}
+
+async function archiveMaterial(materialId, kidId) {
+  const { error } = await supabase.from('study_materials')
+    .update({ archived_at: new Date().toISOString() }).eq('id', materialId);
+  if (error) return;
+  parentData[kidId].materials = parentData[kidId].materials.filter(m => m.id !== materialId);
+  refreshMaterialList(kidId);
+}
+
+function refreshMaterialList(kidId) {
+  const listEl = document.getElementById(`material-list-${kidId}`);
+  if (!listEl) return;
+  const mats = parentData[kidId]?.materials || [];
+  if (mats.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">No materials uploaded yet.</div>';
+    return;
+  }
+  listEl.innerHTML = mats.map(m => `<div class="material-item" id="material-item-${m.id}">
+    <span class="material-subject">${escHtml(m.subject)}</span>
+    <span class="material-name">${escHtml(m.file_name)}</span>
+    <button class="btn-sm btn-sm-danger" onclick="archiveMaterial('${m.id}','${kidId}')">Remove</button>
+  </div>`).join('');
+}
+
+async function saveParentNote(kidId) {
+  const textarea = document.getElementById(`note-text-${kidId}`);
+  const note     = textarea.value.trim();
+  if (!note) return;
+
+  const { data, error } = await supabase.from('parent_notes')
+    .insert({ kid_id: kidId, note }).select().single();
+  if (error || !data) return;
+
+  parentData[kidId].notes.unshift(data);
+  if (parentData[kidId].notes.length > 3) parentData[kidId].notes.length = 3;
+  textarea.value = '';
+  refreshNotesList(kidId);
+}
+
+function refreshNotesList(kidId) {
+  const listEl = document.getElementById(`notes-list-${kidId}`);
+  if (!listEl) return;
+  const notes = parentData[kidId]?.notes || [];
+  if (notes.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">No notes yet.</div>';
+    return;
+  }
+  listEl.innerHTML = notes.map(n => {
+    const ds = new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `<div class="note-item">
+      <div class="note-text">${escHtml(n.note)}</div>
+      <div class="note-time">${ds}</div>
+    </div>`;
+  }).join('');
+}
+
 // ── Expose to HTML inline handlers ───────────────────────────────────────────
-window.handleSignIn   = handleSignIn;
-window.togglePassword = togglePassword;
-window.forgotPassword = forgotPassword;
-window.showView       = showView;
-window.signOut        = signOut;
-window.sendMessage    = sendMessage;
-window.handleKey      = handleKey;
-window.autoGrow       = autoGrow;
+window.handleSignIn       = handleSignIn;
+window.togglePassword     = togglePassword;
+window.forgotPassword     = forgotPassword;
+window.showView           = showView;
+window.signOut            = signOut;
+window.sendMessage        = sendMessage;
+window.handleKey          = handleKey;
+window.autoGrow           = autoGrow;
+window.toggleKidDetail    = toggleKidDetail;
+window.toggleAddExamForm  = toggleAddExamForm;
+window.addExam            = addExam;
+window.deleteExam         = deleteExam;
+window.uploadMaterial     = uploadMaterial;
+window.archiveMaterial    = archiveMaterial;
+window.saveParentNote     = saveParentNote;
 
 // Auto-route if a session already exists (handles page refresh while logged in)
 supabase.auth.getSession().then(({ data: { session } }) => {

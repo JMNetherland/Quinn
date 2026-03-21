@@ -54,6 +54,17 @@ interface SessionSummary {
   academic_notes?: string;
 }
 
+interface ParentNote {
+  note: string;
+  created_at: string;
+}
+
+interface MaterialSummary {
+  subject: string;
+  summary: string;
+  filename: string;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -69,6 +80,8 @@ Deno.serve(async (req: Request) => {
       exams = [],
       conversation_history = [],
       is_first_meeting = false,
+      parent_notes = [],
+      material_summaries = [],
     }: {
       message: string;
       kid_id: string;
@@ -77,6 +90,8 @@ Deno.serve(async (req: Request) => {
       exams: Exam[];
       conversation_history: Message[];
       is_first_meeting: boolean;
+      parent_notes: ParentNote[];
+      material_summaries: MaterialSummary[];
     } = body;
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -89,7 +104,9 @@ Deno.serve(async (req: Request) => {
       learner_profile,
       session_summaries,
       exams,
-      is_first_meeting
+      is_first_meeting,
+      parent_notes,
+      material_summaries
     );
 
     // Append the new user message to conversation history
@@ -183,7 +200,9 @@ function buildKidContext(
   profile: LearnerProfile | null,
   summaries: SessionSummary[],
   exams: Exam[],
-  isFirstMeeting: boolean
+  isFirstMeeting: boolean,
+  parentNotes: ParentNote[] = [],
+  materialSummaries: MaterialSummary[] = []
 ): string {
   // First meeting — entirely different instructions, no profile to read
   if (isFirstMeeting) {
@@ -332,6 +351,25 @@ Keep it light, warm, and real. This should feel like meeting a cool new friend f
     }
     ctx +=
       "\nUse these naturally. If you know something from a past conversation, bring it up the way a friend who actually remembers would — not as a read-back.\n";
+  }
+
+  // Parent context — notes Jason and Keri have shared about this kid
+  if (parentNotes.length > 0) {
+    const name = profile?.stable?.name || "this kid";
+    ctx += `\n## Parent Context\nJason and Keri have shared the following context about ${name}:\n`;
+    for (const n of parentNotes) {
+      ctx += `- ${n.note}\n`;
+    }
+    ctx += "\nUse this as background awareness — don't reference it directly or quote it back to the kid.\n";
+  }
+
+  // Study materials — summaries of uploaded PDFs for this kid
+  if (materialSummaries.length > 0) {
+    const name = profile?.stable?.name || "this kid";
+    ctx += `\n## Available Study Materials\nThe following materials have been uploaded for ${name}. Use this knowledge naturally when relevant subjects come up:\n`;
+    for (const m of materialSummaries) {
+      ctx += `\n### ${m.subject} — ${m.filename}\n${m.summary}\n`;
+    }
   }
 
   return (

@@ -1,13 +1,13 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-20 (Session 3)
+> Last updated: 2026-03-20 (Session 4)
 
 ---
 
 ## Project Overview
 
-Quinn is a personal AI learning companion for three kids. It builds real relationships through persistent memory — not a tutor, but a named AI friend. Single HTML file deployed to GitHub Pages, with a Supabase backend, Claude API for conversation, and Gemini API for document ingestion.
+Quinn is a personal AI learning companion for three kids. It builds real relationships through persistent memory — not a tutor, but a named AI friend. Single HTML file deployed to GitHub Pages, with a Supabase backend and Claude API for all AI tasks (conversation, summaries, document ingestion).
 
 **Kids:** Mason (age 10), Joie (age 13), Bella (age 15)
 **Parents:** Jason + Keri (parent dashboard access)
@@ -20,8 +20,8 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Database + Auth | Supabase (Postgres + Supabase Auth) |
 | AI — Chat | Claude Sonnet 4.6 (via Edge Function) |
 | AI — Summaries / Profile updates | Claude Haiku 4.5 (via Edge Function) |
-| AI — Document processing | Gemini File API (via Edge Function) |
-| API key handling | Claude + Gemini keys via Supabase Edge Functions only — never client-side |
+| AI — Document ingestion | Claude Sonnet 4.6 (via Edge Function — 200K context, no Gemini needed) |
+| API key handling | ANTHROPIC_API_KEY via Supabase Edge Functions only — never client-side |
 
 ---
 
@@ -31,12 +31,12 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 |---|---|
 | AI model (chat) | Claude Sonnet 4.6 |
 | AI model (summaries/profile updates) | Claude Haiku 4.5 |
-| Document processing | Gemini File API |
+| Document ingestion | Claude Sonnet 4.6 — 200K context window is sufficient for school materials; simplifies architecture to one API/one key/one SDK. Gemini dropped. |
 | Database | Supabase (Postgres) |
 | Auth | Supabase Auth |
 | Front end | Single HTML file |
 | Deployment | GitHub Pages |
-| API keys | Claude/Gemini via Edge Functions only — never client-side |
+| API keys | ANTHROPIC_API_KEY via Edge Functions only — never client-side. No GEMINI_API_KEY needed. |
 | Full transcripts visible to parents | Never — summaries only |
 | Sibling visibility | Zero — fully isolated profiles |
 
@@ -106,10 +106,11 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Supabase Edge Functions (`chat`) | ✅ Complete — deploy required |
 | Session summary writing (incremental) | ✅ Complete |
 | Learner profile update after session | ✅ Complete |
-| Parent dashboard (dynamic data) | ❌ Still hardcoded HTML |
-| Exam entry UI | ❌ Not started |
-| Study material upload + Gemini ingestion | ❌ Not started |
-| Parent notes | ❌ Not started |
+| Parent dashboard (dynamic data) | ✅ Complete — loads from Supabase |
+| Exam management (add/delete per kid) | ✅ Complete |
+| Study material upload + Claude ingestion | ✅ Complete |
+| Parent notes (per kid, injected into Quinn context) | ✅ Complete |
+| Edge Function — `ingest-material` | ✅ Complete — deploy required |
 | Supabase migration run in project | ⏳ Pending Jason |
 
 ---
@@ -240,19 +241,100 @@ Wiring:
 
 ---
 
+---
+
+### Session 4 — March 20, 2026
+
+#### Architecture change: Gemini dropped — Claude-only
+
+- Removed Gemini from all documentation, stack tables, and key-decision records
+- Document ingestion now uses Claude Sonnet 4.6 with the PDF document source API (base64)
+- Reason: 200K context window is sufficient for school materials; eliminates a second API key, SDK, and vendor dependency
+- GEMINI_API_KEY is no longer needed anywhere in this project
+
+#### Work completed
+
+**1. Edge Function — `ingest-material` (`supabase/functions/ingest-material/index.ts`)** — new
+- Accepts POST: `{ kid_id, subject, pdf_base64, filename, learner_profile }`
+- Calls Claude Sonnet 4.6 with the PDF as a base64 document source
+- Prompt tailored to kid's name, age, and grade (from learner_profile)
+- Returns: `{ summary: string }` — structured overview, key concepts, important details, likely exam topics
+- Reads ANTHROPIC_API_KEY from Deno env
+
+**2. Parent dashboard — fully dynamic (`index.html`)**
+- `loadParentDashboard()` called on parent login — fetches all kids (`parent_id = user.id`) and parallel-fetches learner_profiles, session_summaries (last 3), exams (upcoming, non-archived), study_materials (non-archived), parent_notes (last 3) for each
+- `renderParentDashboard()` builds kid sections + aggregate upcoming-exams view from in-memory `parentData`
+- Kid cards: name, age/grade, readiness bars (from `readiness_estimate` on latest summary, or derived from academic profile), upcoming exam pills (next 2), last active date, "Details" expand toggle
+- Detail panels: exam management, study material upload, parent notes — all per kid, expandable
+
+**3. Exam management**
+- Per-kid exam list in detail panel with remove (soft-delete via `archived_at`)
+- "+ Add exam" inline form: subject, exam type (quiz/test/midterm/final), date, optional notes
+- On save: inserts to `exams` table, refreshes per-kid list + aggregate section
+- On remove: sets `archived_at`, removes from in-memory state, refreshes both lists
+
+**4. Study material upload**
+- PDF-only file input + subject input
+- On upload: PDF → Supabase Storage (`study-materials` bucket, path `{kid_id}/{subject}/{filename}`) → base64 encode → `ingest-material` Edge Function → insert to `study_materials` with `material_summary` column
+- Uploaded materials list with archive (soft-delete via `archived_at`)
+
+**5. Parent notes**
+- Textarea + "Save note" per kid
+- Inserts to `parent_notes` table; shows last 3 notes with dates
+- Notes injected into Quinn's chat system prompt as parent context (see chat Edge Function update)
+
+**6. Edge Function — `chat` updated**
+- New payload fields: `parent_notes` (array of `{ note, created_at }`) and `material_summaries` (array of `{ subject, summary, filename }`)
+- `buildKidContext()` now includes two new sections in Block 2 (kid-specific context, cached):
+  - `## Parent Context` — notes from Jason and Keri, framed as background awareness
+  - `## Available Study Materials` — per-subject summaries with structured content
+
+**7. `index.html` routing wiring**
+- `routeUser()` for parent: calls `loadParentDashboard()` after `showView('parent')`
+- `routeUser()` for returning kid: now parallel-fetches `parent_notes` and `study_materials` alongside existing fetches; stores in `parentNotes` / `materialSummaries` state
+- `sendMessage()`: includes `parent_notes` and `material_summaries` in every chat payload
+- `signOut()`: resets all new state variables
+
+#### Schema changes required (patch migration — see Needs Jason)
+- `study_materials.gemini_summary` → renamed to `material_summary`
+- `study_materials` → add `archived_at TIMESTAMPTZ`
+- `exams` → add `archived_at TIMESTAMPTZ`
+
+#### Files changed
+- `supabase/functions/ingest-material/index.ts` — **new**
+- `supabase/functions/chat/index.ts` — parent_notes + material_summaries payload + buildKidContext sections
+- `index.html` — CSS (dynamic parent dashboard), HTML (dynamic container), JS (all parent dashboard functions + routing wiring)
+- `HANDOFF.md` — this update
+- `CLAUDE.md` — Gemini removed from stack table and key rules
+
+---
+
 ## Needs Jason (everything required before end-to-end testing)
 
 1. **Run SQL migration** — open Supabase dashboard → SQL editor → paste and run `supabase/migrations/001_initial_schema.sql`
+
+   > **Schema note (Session 4):** The migration was written with `gemini_summary` on `study_materials`. Rename it to `material_summary`. Also add `archived_at TIMESTAMPTZ` columns to both `exams` and `study_materials` for soft-delete support. Run this patch after the main migration:
+   > ```sql
+   > ALTER TABLE study_materials RENAME COLUMN gemini_summary TO material_summary;
+   > ALTER TABLE study_materials ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+   > ALTER TABLE exams ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+   > ```
+
 2. **Deploy Edge Functions** — from the `Quinn/` project root:
    ```
    supabase functions deploy chat
    supabase functions deploy summarize
    supabase functions deploy update-profile
+   supabase functions deploy ingest-material
    ```
 3. **Set API key secret** — `supabase secrets set ANTHROPIC_API_KEY=<your_key>`
-4. **Create parent account** — Supabase Auth → Add user (email + password) for Jason (and Keri if desired)
-5. **Create kid accounts** — Supabase Auth → Add user for Mason, Joie, and Bella (one each)
-6. **Seed `profiles` table** — for each auth user, insert a row linking the `id` (UUID from Auth) to the correct `kid_id` FK and set `is_parent` flag appropriately. Example:
+   > No GEMINI_API_KEY needed — Gemini has been dropped. Claude handles document ingestion.
+
+4. **Enable Supabase Storage** — Dashboard → Storage → Create a new bucket named `study-materials`. Set it to **private** (RLS). Add a policy allowing authenticated users to insert/read their own kid's files.
+
+5. **Create parent account** — Supabase Auth → Add user (email + password) for Jason (and Keri if desired)
+6. **Create kid accounts** — Supabase Auth → Add user for Mason, Joie, and Bella (one each)
+7. **Seed `profiles` table** — for each auth user, insert a row linking the `id` (UUID from Auth) to the correct `kid_id` FK and set `is_parent` flag appropriately. Example:
    ```sql
    -- Parent
    INSERT INTO profiles (id, is_parent) VALUES ('<jason-auth-uuid>', true);
@@ -260,7 +342,7 @@ Wiring:
    INSERT INTO profiles (id, is_parent, kid_id) VALUES ('<mason-auth-uuid>', false, '<mason-kids-uuid>');
    ```
    The `kids` table rows also need to exist first (name, age, grade, parent_id).
-7. **Push to GitHub Pages** — `git push origin main` (Pages auto-deploys on push)
+8. **Push to GitHub Pages** — `git push origin main` (Pages auto-deploys on push)
 
 ---
 
@@ -269,4 +351,4 @@ Wiring:
 - **Bella is dyslexic** — her child profile must use a dyslexia-friendly font (e.g. OpenDyslexic or similar). This is a per-child profile setting, not a global app setting.
 - **Sibling isolation is strict** — no cross-sibling data access under any circumstances. RLS enforces this at the database level.
 - **No full transcripts for parents** — parents see session summaries only. This is intentional to preserve kid trust.
-- **All API keys server-side only** — Claude and Gemini keys live exclusively in Supabase Edge Function environment variables. If any API call is ever added to client JS, that is a bug.
+- **All API keys server-side only** — ANTHROPIC_API_KEY lives exclusively in Supabase Edge Function environment variables. If any API call is ever added to client JS, that is a bug. No GEMINI_API_KEY is used.
