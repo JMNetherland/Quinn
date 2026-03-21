@@ -19,6 +19,10 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
+  // Never intercept cross-origin requests (Supabase API, CDN, Edge Functions).
+  // Let these go straight to the network — service worker must not touch them.
+  if (url.origin !== self.location.origin) return;
+
   // Navigation (the app HTML) — always hit the network, skip all caches.
   // Falls back to cached copy only when genuinely offline.
   if (e.request.mode === 'navigate') {
@@ -34,7 +38,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // External resources (Google Fonts etc.) — cache-first, fine to serve stale
+  // Same-origin static assets (sw.js itself, etc.) — cache-first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
