@@ -136,16 +136,15 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | learner_profiles upsert onConflict | ✅ Fixed |
 | Version numbering (APP_VERSION + CACHE_NAME) | ✅ v0.1.0 |
 | quinn-version-bump skill | ✅ Created |
-| Bella dyslexia font | ⏳ Next coding task |
+| Bella dyslexia font | ✅ Complete |
 
 ---
 
 ## Next Steps (in order)
 
 1. **Test the live app** — full end-to-end test pass (see test plan in Session 5 notes)
-2. **Bella dyslexia font** — Apply OpenDyslexic when `learner_profile.stable.dyslexia_font === true`
-3. **Multi-parent access** — schema change to support Keri having her own dashboard view
-4. **Kid profile editing** — parent dashboard form to edit name/age/grade
+2. **Multi-parent access** — schema change to support Keri having her own dashboard view
+3. **Kid profile editing** — parent dashboard form to edit name/age/grade
 
 ---
 
@@ -376,7 +375,7 @@ Wiring:
 
 ## Needs Jason
 
-- **Bella dyslexia font** — next coding task (not yet implemented). See Next Steps.
+- **Bella dyslexia font** — ✅ Done. Set `stable.dyslexia_font = true` in `learner_profiles` via SQL for each kid that needs it. Font loads from cdnfonts.com CDN, applied on login via `applyDyslexiaFont()`.
 - **Multi-parent dashboard access** — v1 limitation: only Jason's account sees the parent dashboard. Keri can use Jason's login for now. Schema change needed for dual-parent support.
 - **Kid profile editing from dashboard** — no edit form for name/age/grade yet. Use SQL editor for corrections in the meantime.
 
