@@ -1517,6 +1517,21 @@ function buildKidDetailHTML(d) {
   const { kid, exams, materials, notes } = d;
   const kidId = kid.id;
 
+  // Edit profile section
+  const editProfileHTML = `
+    <div class="detail-section">
+      <div class="section-sub-label">Edit Profile</div>
+      <div class="form-row">
+        <input class="dash-input" id="kid-name-${kidId}" placeholder="Name" value="${escHtml(kid.name)}" style="flex:2">
+        <input class="dash-input" id="kid-age-${kidId}"  placeholder="Age"  value="${kid.age ?? ''}" type="number" min="1" max="20" style="flex:1">
+        <input class="dash-input" id="kid-grade-${kidId}" placeholder="Grade" value="${escHtml(kid.grade ?? '')}" style="flex:1">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <button class="btn-primary-sm" onclick="saveKidProfile('${kidId}')">Save</button>
+        <span class="upload-status" id="kid-profile-status-${kidId}"></span>
+      </div>
+    </div>`;
+
   // Exam list
   const examItemsHTML = exams.length === 0
     ? '<div class="empty-state">No upcoming exams.</div>'
@@ -1596,7 +1611,8 @@ function buildKidDetailHTML(d) {
       <div id="notes-list-${kidId}">${noteItemsHTML}</div>
       <textarea class="note-input" id="note-text-${kidId}" placeholder="Context Quinn should know about ${escHtml(kid.name)}…"></textarea>
       <button class="btn-primary-sm" onclick="saveParentNote('${kidId}')" style="align-self:flex-end;margin-top:4px">Save note</button>
-    </div>`;
+    </div>
+    ${editProfileHTML}`;
 }
 
 function toggleKidDetail(kidId) {
@@ -1809,6 +1825,40 @@ function cancelNoteEdit(noteId, kidId) {
   refreshNotesList(kidId);
 }
 
+async function saveKidProfile(kidId) {
+  const nameEl   = document.getElementById(`kid-name-${kidId}`);
+  const ageEl    = document.getElementById(`kid-age-${kidId}`);
+  const gradeEl  = document.getElementById(`kid-grade-${kidId}`);
+  const statusEl = document.getElementById(`kid-profile-status-${kidId}`);
+
+  const name  = nameEl.value.trim();
+  const age   = parseInt(ageEl.value, 10) || null;
+  const grade = gradeEl.value.trim();
+
+  if (!name) { statusEl.classList.add('error'); statusEl.textContent = 'Name is required.'; return; }
+  statusEl.classList.remove('error');
+  statusEl.textContent = 'Saving…';
+
+  const { error } = await supabase.from('kids').update({ name, age, grade }).eq('id', kidId);
+  if (error) {
+    statusEl.classList.add('error');
+    statusEl.textContent = `Failed: ${error.message}`;
+    return;
+  }
+
+  // Update in-memory state and re-render the kid card
+  const kid = parentData[kidId].kid;
+  kid.name = name; kid.age = age; kid.grade = grade;
+  const card = document.getElementById(`kid-card-${kidId}`);
+  if (card) {
+    card.querySelector('.kid-card-name').textContent = name;
+    card.querySelector('.kid-card-meta').textContent = `Age ${age} · Grade ${grade}`;
+  }
+
+  statusEl.textContent = 'Saved.';
+  setTimeout(() => { statusEl.textContent = ''; }, 2000);
+}
+
 function refreshNotesList(kidId) {
   const listEl = document.getElementById(`notes-list-${kidId}`);
   if (!listEl) return;
@@ -1851,6 +1901,7 @@ window.deleteNote         = deleteNote;
 window.editNote           = editNote;
 window.saveNoteEdit       = saveNoteEdit;
 window.cancelNoteEdit     = cancelNoteEdit;
+window.saveKidProfile     = saveKidProfile;
 window.saveParentNote     = saveParentNote;
 
 // Stamp version into the sign-in screen
