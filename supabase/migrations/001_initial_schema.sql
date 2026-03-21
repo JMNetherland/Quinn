@@ -139,8 +139,16 @@ CREATE POLICY "parents read kids learner profiles"
     kid_id IN (SELECT id FROM kids WHERE parent_id = auth.uid())
   );
 
--- Edge Functions write learner profiles (service role key bypasses RLS).
--- No direct client write policies needed.
+-- Kids write their own learner profile (saveMeetGreetProfile + updateProfile called from client)
+CREATE POLICY "kids write own learner profile"
+  ON learner_profiles FOR ALL
+  TO authenticated
+  USING (
+    kid_id = (SELECT kid_id FROM profiles WHERE id = auth.uid())
+  )
+  WITH CHECK (
+    kid_id = (SELECT kid_id FROM profiles WHERE id = auth.uid())
+  );
 
 -- ── session_summaries policies ───────────────────────────────────────────────
 CREATE POLICY "kids read own summaries"
@@ -153,6 +161,17 @@ CREATE POLICY "parents read kids summaries"
   ON session_summaries FOR SELECT
   USING (
     kid_id IN (SELECT id FROM kids WHERE parent_id = auth.uid())
+  );
+
+-- Kids write their own session summaries (writeSummary called from client)
+CREATE POLICY "kids write own summaries"
+  ON session_summaries FOR ALL
+  TO authenticated
+  USING (
+    kid_id = (SELECT kid_id FROM profiles WHERE id = auth.uid())
+  )
+  WITH CHECK (
+    kid_id = (SELECT kid_id FROM profiles WHERE id = auth.uid())
   );
 
 -- ── exams policies ───────────────────────────────────────────────────────────
