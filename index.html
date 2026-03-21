@@ -658,10 +658,14 @@ body.dyslexia-font input {
   padding: 10px 12px;
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
 }
+.note-item-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
 .note-text { font-size: 0.82rem; color: var(--text); line-height: 1.6; }
 .note-time {
   font-family: 'Syne', sans-serif; font-size: 0.5rem;
-  letter-spacing: 0.1em; color: var(--text-3); margin-top: 4px;
+  letter-spacing: 0.1em; color: var(--text-3);
 }
 .note-input {
   background: var(--surface-2); border: 1px solid var(--border-2);
@@ -1528,9 +1532,15 @@ function buildKidDetailHTML(d) {
     ? '<div class="empty-state">No notes yet.</div>'
     : notes.map(n => {
         const ds = new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `<div class="note-item">
+        return `<div class="note-item" id="note-item-${n.id}">
+          <div class="note-item-header">
+            <div class="note-time">${ds}</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm" onclick="editNote('${n.id}','${kidId}')">Edit</button>
+              <button class="btn-sm btn-sm-danger" onclick="deleteNote('${n.id}','${kidId}')">Remove</button>
+            </div>
+          </div>
           <div class="note-text">${escHtml(n.note)}</div>
-          <div class="note-time">${ds}</div>
         </div>`;
       }).join('');
 
@@ -1750,6 +1760,42 @@ async function saveParentNote(kidId) {
   refreshNotesList(kidId);
 }
 
+async function deleteNote(noteId, kidId) {
+  const { error } = await supabase.from('parent_notes').delete().eq('id', noteId);
+  if (error) return;
+  parentData[kidId].notes = parentData[kidId].notes.filter(n => n.id !== noteId);
+  refreshNotesList(kidId);
+}
+
+function editNote(noteId, kidId) {
+  const note = parentData[kidId].notes.find(n => n.id === noteId);
+  if (!note) return;
+  const el = document.getElementById(`note-item-${noteId}`);
+  if (!el) return;
+  el.innerHTML = `
+    <textarea class="note-input" id="note-edit-${noteId}" rows="3"></textarea>
+    <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+      <button class="btn-sm" onclick="cancelNoteEdit('${noteId}','${kidId}')">Cancel</button>
+      <button class="btn-primary-sm" onclick="saveNoteEdit('${noteId}','${kidId}')">Save</button>
+    </div>`;
+  document.getElementById(`note-edit-${noteId}`).value = note.note;
+}
+
+async function saveNoteEdit(noteId, kidId) {
+  const textarea = document.getElementById(`note-edit-${noteId}`);
+  const newText = textarea?.value.trim();
+  if (!newText) return;
+  const { error } = await supabase.from('parent_notes').update({ note: newText }).eq('id', noteId);
+  if (error) return;
+  const note = parentData[kidId].notes.find(n => n.id === noteId);
+  if (note) note.note = newText;
+  refreshNotesList(kidId);
+}
+
+function cancelNoteEdit(noteId, kidId) {
+  refreshNotesList(kidId);
+}
+
 function refreshNotesList(kidId) {
   const listEl = document.getElementById(`notes-list-${kidId}`);
   if (!listEl) return;
@@ -1760,9 +1806,15 @@ function refreshNotesList(kidId) {
   }
   listEl.innerHTML = notes.map(n => {
     const ds = new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `<div class="note-item">
+    return `<div class="note-item" id="note-item-${n.id}">
+      <div class="note-item-header">
+        <div class="note-time">${ds}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-sm" onclick="editNote('${n.id}','${kidId}')">Edit</button>
+          <button class="btn-sm btn-sm-danger" onclick="deleteNote('${n.id}','${kidId}')">Remove</button>
+        </div>
+      </div>
       <div class="note-text">${escHtml(n.note)}</div>
-      <div class="note-time">${ds}</div>
     </div>`;
   }).join('');
 }
@@ -1782,6 +1834,10 @@ window.addExam            = addExam;
 window.deleteExam         = deleteExam;
 window.uploadMaterial     = uploadMaterial;
 window.archiveMaterial    = archiveMaterial;
+window.deleteNote         = deleteNote;
+window.editNote           = editNote;
+window.saveNoteEdit       = saveNoteEdit;
+window.cancelNoteEdit     = cancelNoteEdit;
 window.saveParentNote     = saveParentNote;
 
 // Stamp version into the sign-in screen
