@@ -199,6 +199,18 @@ html, body {
 }
 .signin-footer-link:hover { color: var(--text-2); }
 
+.app-version {
+  position: absolute;
+  bottom: 16px;
+  right: 20px;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  opacity: 0.4;
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    CHAT VIEW  (also used as base for meet-greet)
    ════════════════════════════════════════════════════════════════════════════ */
@@ -683,6 +695,7 @@ html, body {
       <button type="button" class="signin-footer-link" onclick="forgotPassword()">Forgot password?</button>
     </div>
   </form>
+  <p class="app-version" id="app-version"></p>
 </div>
 
 <!-- ══ CHAT ══════════════════════════════════════════════════════════════════ -->
@@ -740,6 +753,9 @@ html, body {
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 'use strict';
+
+// ── Version ───────────────────────────────────────────────────────────────────
+const APP_VERSION = '0.1.0';
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
 const SUPABASE_URL      = 'https://onevueekevfpniopuyhj.supabase.co';
@@ -1166,6 +1182,11 @@ async function writeSummary(isFinal) {
   try {
     // Call summarize Edge Function if there is new content to process
     if (segment.length > 0) {
+      const { data: { session: sumSession } } = await supabase.auth.getSession();
+      const sumAuthHeader = sumSession?.access_token
+        ? { Authorization: `Bearer ${sumSession.access_token}` }
+        : { Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
       const { data, error } = await supabase.functions.invoke('summarize', {
         body: {
           kid_id:               currentKidRecord.id,
@@ -1173,6 +1194,7 @@ async function writeSummary(isFinal) {
           existing_summary:     currentSessionSummary,
           learner_profile:      learnerProfile?.profile_json ?? null,
         },
+        headers: sumAuthHeader,
       });
 
       if (!error && data?.summary) {
@@ -1217,12 +1239,18 @@ async function updateProfile() {
   if (!currentKidRecord || !currentSessionSummary) return;
 
   try {
+    const { data: { session: upSession } } = await supabase.auth.getSession();
+    const upAuthHeader = upSession?.access_token
+      ? { Authorization: `Bearer ${upSession.access_token}` }
+      : { Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
     const { data, error } = await supabase.functions.invoke('update-profile', {
       body: {
         kid_id:          currentKidRecord.id,
         current_profile: learnerProfile?.profile_json ?? null,
         session_summary: currentSessionSummary,
       },
+      headers: upAuthHeader,
     });
 
     if (error || !data?.profile) return;
@@ -1232,7 +1260,7 @@ async function updateProfile() {
       kid_id:       currentKidRecord.id,
       profile_json: data.profile,
       updated_at:   new Date().toISOString(),
-    });
+    }, { onConflict: 'kid_id' });
 
     // Update in-memory state
     if (learnerProfile) {
@@ -1631,8 +1659,14 @@ async function uploadMaterial(kidId) {
 
     // 3. Call ingest-material edge function
     const profile = parentData[kidId]?.profile?.profile_json || null;
+    const { data: { session: ingSession } } = await supabase.auth.getSession();
+    const ingAuthHeader = ingSession?.access_token
+      ? { Authorization: `Bearer ${ingSession.access_token}` }
+      : { Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
     const { data: ingestData, error: ingestErr } = await supabase.functions.invoke('ingest-material', {
       body: { kid_id: kidId, subject, pdf_base64: pdfBase64, filename: file.name, learner_profile: profile },
+      headers: ingAuthHeader,
     });
     if (ingestErr) throw ingestErr;
 
@@ -1727,6 +1761,9 @@ window.deleteExam         = deleteExam;
 window.uploadMaterial     = uploadMaterial;
 window.archiveMaterial    = archiveMaterial;
 window.saveParentNote     = saveParentNote;
+
+// Stamp version into the sign-in screen
+document.getElementById('app-version').textContent = `v${APP_VERSION}`;
 
 // Auto-route if a session already exists (handles page refresh while logged in)
 supabase.auth.getSession().then(({ data: { session } }) => {
