@@ -1123,18 +1123,27 @@ async function saveMeetGreetProfile() {
   });
 
   // Update in-memory state so the chat view has a profile to work with
-  learnerProfile        = { kid_id: currentKidRecord.id, profile_json: initialProfile };
+  learnerProfile = { kid_id: currentKidRecord.id, profile_json: initialProfile };
+
+  // Carry the MG conversation seamlessly into the chat view —
+  // the kid should feel zero discontinuity. Profile save is invisible.
+  conversationHistory = [...mgConversationHistory];
+  lastSummaryAt       = conversationHistory.length; // don't re-summarize what's already happened
   mgConversationHistory = [];
   mgExchangeCount       = 0;
 
   sessionStartedAt      = new Date().toISOString();
   currentSessionSummary = null;
-  lastSummaryAt         = 0;
   sessionEnded          = false;
 
-  document.getElementById('chat-messages').innerHTML = '';
-  addQuinnMsg('chat', buildGreeting(currentKidRecord, learnerProfile, sessionSummaries, upcomingExams));
+  // Move the visual messages from MG container into the chat container
+  const mgMessages   = document.getElementById('mg-messages');
+  const chatMessages = document.getElementById('chat-messages');
+  chatMessages.innerHTML = '';
+  while (mgMessages.firstChild) chatMessages.appendChild(mgMessages.firstChild);
+
   showView('chat');
+  resetInactivityTimer();
 }
 
 // ── Session summary & profile update ─────────────────────────────────────────
