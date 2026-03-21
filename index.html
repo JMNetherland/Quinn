@@ -569,8 +569,10 @@ body.dyslexia-font input {
 .kid-detail {
   background: var(--surface); border: 1px solid var(--border);
   border-top: none; border-radius: 0 0 12px 12px;
-  padding: 20px; display: flex; flex-direction: column; gap: 22px;
+  padding: 20px; flex-direction: column; gap: 22px;
+  display: none;
 }
+.kid-detail.open { display: flex; }
 
 .detail-section { display: flex; flex-direction: column; gap: 8px; }
 
@@ -1506,7 +1508,6 @@ function renderKidSection(d) {
   const detail = document.createElement('div');
   detail.className = 'kid-detail';
   detail.id = `kid-detail-${kid.id}`;
-  detail.hidden = true;
   detail.innerHTML = buildKidDetailHTML(d);
   section.appendChild(detail);
 
@@ -1619,8 +1620,8 @@ function toggleKidDetail(kidId) {
   const detail = document.getElementById(`kid-detail-${kidId}`);
   const btn    = document.getElementById(`toggle-btn-${kidId}`);
   const card   = document.getElementById(`kid-card-${kidId}`);
-  const isOpen = !detail.hidden;
-  detail.hidden = isOpen;
+  const isOpen = detail.classList.contains('open');
+  detail.classList.toggle('open', !isOpen);
   btn.classList.toggle('open', !isOpen);
   card.classList.toggle('detail-open', !isOpen);
 }
