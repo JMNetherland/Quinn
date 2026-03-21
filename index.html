@@ -396,6 +396,26 @@ body.dyslexia-font input {
   background: var(--accent-dim);
 }
 
+.mic-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid var(--border-2); background: transparent;
+  color: var(--text-3); display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; font-size: 1rem;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.mic-btn:hover { border-color: var(--accent); color: var(--text); background: var(--accent-dim); }
+.mic-btn.listening {
+  border-color: hsl(0,70%,55%); color: hsl(0,70%,65%);
+  background: hsl(0,40%,12%); animation: pulse-mic 1s ease-in-out infinite;
+}
+@keyframes pulse-mic { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+
+.mute-btn {
+  background: transparent; border: none; color: var(--text-3);
+  font-size: 1rem; padding: 4px 6px; cursor: pointer; transition: color 0.2s;
+}
+.mute-btn:hover { color: var(--text); }
+
 /* ════════════════════════════════════════════════════════════════════════════
    PARENT DASHBOARD
    ════════════════════════════════════════════════════════════════════════════ */
@@ -730,7 +750,7 @@ body.dyslexia-font input {
   <div class="chat-header">
     <button class="back-btn" onclick="signOut()">←</button>
     <span class="header-kid-name" id="chat-kid-label">—</span>
-    <div class="header-dot"></div>
+    <button class="mute-btn" id="mute-btn" onclick="toggleMute()" title="Mute Quinn's voice">🔊</button>
   </div>
   <div class="quinn-spacer"></div>
   <div class="quinn-stage" id="chat-stage"></div>
@@ -740,6 +760,7 @@ body.dyslexia-font input {
       placeholder="Say something…"
       onkeydown="handleKey(event,'chat')"
       oninput="autoGrow(this)"></textarea>
+    <button class="mic-btn" id="mic-btn-chat" onclick="toggleMic('chat')" title="Speak to Quinn">🎤</button>
     <button class="send-btn" onclick="sendMessage('chat')">→</button>
   </div>
 </div>
@@ -749,7 +770,7 @@ body.dyslexia-font input {
   <div class="chat-header">
     <button class="back-btn" onclick="signOut()">←</button>
     <span class="header-kid-name">First meeting</span>
-    <div class="header-dot"></div>
+    <button class="mute-btn" id="mute-btn-mg" onclick="toggleMute()" title="Mute Quinn's voice">🔊</button>
   </div>
   <div class="quinn-spacer"></div>
   <div class="quinn-stage" id="mg-stage"></div>
@@ -759,6 +780,7 @@ body.dyslexia-font input {
       placeholder="Say something…"
       onkeydown="handleKey(event,'mg')"
       oninput="autoGrow(this)"></textarea>
+    <button class="mic-btn" id="mic-btn-mg" onclick="toggleMic('mg')" title="Speak to Quinn">🎤</button>
     <button class="send-btn" onclick="sendMessage('mg')">→</button>
   </div>
 </div>
@@ -809,6 +831,10 @@ let mgConversationHistory = [];    // meet & greet view history
 let mgExchangeCount       = 0;     // number of user turns in meet & greet
 let mgProfileSaved        = false; // guards against duplicate profile saves
 let isSending             = false; // prevents double-send during async call
+let voiceMuted            = false; // user-toggled TTS mute
+let isListening           = false; // mic active
+let recognition           = null;  // SpeechRecognition instance
+let quinnVoice            = null;  // cached best TTS voice
 
 // ── Session summary state ──────────────────────────────────────────────────────
 let currentSessionSummary  = null;           // running summary object (null at session start)
@@ -923,8 +949,10 @@ async function routeUser(userId, errorEl) {
 
   await applyDyslexiaFont(lp?.profile_json);
   document.getElementById('chat-messages').innerHTML = '';
-  addQuinnMsg('chat', buildGreeting(kid, lp, sessionSummaries, upcomingExams));
+  const greeting = buildGreeting(kid, lp, sessionSummaries, upcomingExams);
+  addQuinnMsg('chat', greeting);
   showView('chat');
+  speakQuinn(greeting);
 }
 
 async function handleSignIn(e) {
@@ -963,7 +991,100 @@ function buildGreeting(kid, lp, summaries, exams) {
   return `Hey ${name}! What's going on?`;
 }
 
-async function applyDyslexiaFont(profile_json) {
+async // ── Voice — TTS + STT ─────────────────────────────────────────────────────────
+
+function pickVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  return voices.find(v => v.name.includes('Google') && v.lang === 'en-US') ||
+         voices.find(v => /zira/i.test(v.name))  ||
+         voices.find(v => v.lang === 'en-US')     ||
+         voices.find(v => v.lang.startsWith('en')) ||
+         voices[0] || null;
+}
+
+function stripForSpeech(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/`{1,3}[\s\S]*?`{1,3}/g, '')
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+    .trim();
+}
+
+function speakQuinn(text) {
+  if (voiceMuted || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(stripForSpeech(text));
+  utt.voice  = quinnVoice || pickVoice();
+  utt.rate   = 1.05;
+  utt.pitch  = 1.1;
+  utt.volume = 1.0;
+  utt.onstart = () => setQuinnState('engaged');
+  utt.onend   = () => setQuinnState('listening');
+  utt.onerror = () => setQuinnState('listening');
+  window.speechSynthesis.speak(utt);
+}
+
+function toggleMute() {
+  voiceMuted = !voiceMuted;
+  if (voiceMuted) window.speechSynthesis.cancel();
+  document.querySelectorAll('.mute-btn').forEach(btn => {
+    btn.textContent = voiceMuted ? '🔇' : '🔊';
+  });
+}
+
+function toggleMic(view) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Voice input not supported — try Chrome or Edge.'); return; }
+
+  if (isListening) { recognition?.stop(); return; }
+
+  // Stop Quinn speaking before recording
+  window.speechSynthesis.cancel();
+
+  recognition = new SR();
+  recognition.continuous     = false;
+  recognition.interimResults = false;
+  recognition.lang           = 'en-US';
+
+  const inputEl = document.getElementById(view === 'chat' ? 'chat-input' : 'mg-input');
+  const micBtn  = document.getElementById(`mic-btn-${view}`);
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.classList.add('listening');
+    inputEl.placeholder = 'Listening…';
+    setQuinnState('curious');
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    inputEl.value = transcript;
+    autoGrow(inputEl);
+    setTimeout(() => sendMessage(view), 500);
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    inputEl.placeholder = 'Say something…';
+  };
+
+  recognition.onerror = (e) => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    inputEl.placeholder = 'Say something…';
+    setQuinnState('listening');
+    console.error('[Quinn] STT error:', e.error);
+  };
+
+  recognition.start();
+}
+
+function applyDyslexiaFont(profile_json) {
   const enabled = profile_json?.stable?.dyslexia_font === true;
   document.body.classList.toggle('dyslexia-font', enabled);
   if (enabled) {
@@ -973,6 +1094,9 @@ async function applyDyslexiaFont(profile_json) {
 
 async function signOut() {
   document.body.classList.remove('dyslexia-font');
+  window.speechSynthesis?.cancel();
+  if (recognition) { recognition.abort(); recognition = null; }
+  isListening = false;
   if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
   await supabase.auth.signOut();
   currentKidRecord      = null;
@@ -1094,6 +1218,7 @@ async function sendMessage(view) {
     } else {
       const response = data.response;
       addQuinnMsg(view, response);
+      speakQuinn(response);
 
       // Update in-memory history
       history.push({ role: 'user',      content: text     });
@@ -1312,6 +1437,7 @@ async function updateProfile() {
 }
 
 function handleKey(e, view) {
+  if (e.key !== 'Shift') window.speechSynthesis?.cancel();
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(view); }
 }
 
@@ -1904,6 +2030,15 @@ window.saveNoteEdit       = saveNoteEdit;
 window.cancelNoteEdit     = cancelNoteEdit;
 window.saveKidProfile     = saveKidProfile;
 window.saveParentNote     = saveParentNote;
+window.toggleMic          = toggleMic;
+window.toggleMute         = toggleMute;
+
+// Pre-load TTS voice (Chrome loads voices async)
+if (window.speechSynthesis) {
+  const initVoice = () => { quinnVoice = pickVoice(); };
+  window.speechSynthesis.onvoiceschanged = initVoice;
+  initVoice();
+}
 
 // Stamp version into the sign-in screen
 document.getElementById('app-version').textContent = `v${APP_VERSION}`;
