@@ -1334,7 +1334,7 @@ async function loadParentDashboard() {
   if (!user) return;
 
   const { data: kids, error } = await supabase
-    .from('kids').select('*').eq('parent_id', user.id).order('name');
+    .from('kids').select('*').or(`parent_id.eq.${user.id},co_parent_id.eq.${user.id}`).order('name');
 
   if (error || !kids?.length) {
     bodyEl.innerHTML = '<div class="parent-loading">No kids found — add kid accounts in Supabase.</div>';
