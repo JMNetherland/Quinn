@@ -2038,6 +2038,20 @@ if (window.speechSynthesis) {
   const initVoice = () => { quinnVoice = pickVoice(); };
   window.speechSynthesis.onvoiceschanged = initVoice;
   initVoice();
+
+  // iOS requires speechSynthesis to be "unlocked" via a direct user gesture.
+  // Without this, any speak() call triggered by async code (API response) is
+  // silently ignored. We fire a silent utterance on the first touch/click to
+  // wake up the audio subsystem — one-time only, then the listener removes itself.
+  const unlockIOS = () => {
+    const silent = new SpeechSynthesisUtterance('');
+    silent.volume = 0;
+    window.speechSynthesis.speak(silent);
+    document.removeEventListener('touchstart', unlockIOS, true);
+    document.removeEventListener('click',      unlockIOS, true);
+  };
+  document.addEventListener('touchstart', unlockIOS, true);
+  document.addEventListener('click',      unlockIOS, true);
 }
 
 // Stamp version into the sign-in screen
