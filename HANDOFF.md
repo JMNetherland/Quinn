@@ -1,13 +1,13 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-20 (Session 6)
+> Last updated: 2026-03-21 (Session 7)
 
 ---
 
 ## Version
 
-**Current: `v0.1.1`**
+**Current: `v0.2.0`**
 
 | Bump | When |
 |---|---|
@@ -15,7 +15,7 @@
 | MINOR (0.**x**.0) | New feature shipped and tested |
 | MAJOR (**x**.0.0) | `1.0.0` = production-ready, all kids using it |
 
-Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.1.1`.
+Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.2.0`.
 
 ---
 
