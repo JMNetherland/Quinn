@@ -125,6 +125,9 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Exam management (add/delete per kid) | ✅ Complete |
 | Study material upload + Claude ingestion | ✅ Complete |
 | Parent notes (per kid, injected into Quinn context) | ✅ Complete |
+| Parent notes edit + delete | ✅ Complete |
+| Multi-parent access (Keri) | ✅ Complete |
+| Kid profile editing (name/age/grade) | ✅ Complete |
 | Supabase Storage bucket (`study-materials`) | ✅ Created with RLS |
 | Auth users created (Jason, Keri, Mason, Joie, Bella, JMNetherland) | ✅ Done |
 | Database seeded (profiles + kids rows) | ✅ Done |
@@ -142,9 +145,8 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 
 ## Next Steps (in order)
 
-1. **Test the live app** — full end-to-end test pass (see test plan in Session 5 notes)
-2. **Multi-parent access** — schema change to support Keri having her own dashboard view
-3. **Kid profile editing** — parent dashboard form to edit name/age/grade
+1. **Test the live app** — full end-to-end test pass with real kid accounts
+2. **Session summary verification** — confirm 5-minute idle triggers a summary write correctly in production
 
 ---
 
