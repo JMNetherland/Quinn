@@ -957,6 +957,11 @@ async function routeUser(userId, errorEl) {
 
 async function handleSignIn(e) {
   e.preventDefault();
+  // iOS TTS prime — must happen before any await (see sendMessage for full comment)
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(' '));
+  }
   const errorEl = document.getElementById('signin-error');
   errorEl.textContent = '';
   errorEl.style.color = '';
@@ -1016,7 +1021,6 @@ function stripForSpeech(text) {
 
 function speakQuinn(text) {
   if (voiceMuted || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(stripForSpeech(text));
   utt.voice  = quinnVoice || pickVoice();
   utt.rate   = 1.05;
@@ -1025,7 +1029,10 @@ function speakQuinn(text) {
   utt.onstart = () => setQuinnState('engaged');
   utt.onend   = () => setQuinnState('listening');
   utt.onerror = () => setQuinnState('listening');
-  window.speechSynthesis.speak(utt);
+  // cancel then speak with a short delay — iOS drops speak() called immediately
+  // after cancel() due to an internal audio session reset
+  window.speechSynthesis.cancel();
+  setTimeout(() => window.speechSynthesis.speak(utt), 50);
 }
 
 function toggleMute() {
@@ -1177,6 +1184,14 @@ function addThinking(view) {
 
 async function sendMessage(view) {
   if (isSending) return;
+
+  // iOS blocks speechSynthesis.speak() unless called from within a synchronous
+  // user gesture. We prime it here — before any await — so the audio session
+  // stays unlocked by the time the API response arrives and speakQuinn fires.
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(' '));
+  }
 
   const inputId = view === 'chat' ? 'chat-input' : 'mg-input';
   const input   = document.getElementById(inputId);
@@ -2044,7 +2059,7 @@ if (window.speechSynthesis) {
   // silently ignored. We fire a silent utterance on the first touch/click to
   // wake up the audio subsystem — one-time only, then the listener removes itself.
   const unlockIOS = () => {
-    const silent = new SpeechSynthesisUtterance('');
+    const silent = new SpeechSynthesisUtterance(' ');  // empty string skipped by iOS
     silent.volume = 0;
     window.speechSynthesis.speak(silent);
     document.removeEventListener('touchstart', unlockIOS, true);
