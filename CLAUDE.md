@@ -14,7 +14,7 @@ Key principle: Rapport and trust come first. Education follows naturally. Quinn 
 
 | Piece | Tool |
 |---|---|
-| AI conversation | Claude API (Sonnet 4.6 for live chat, Haiku 4.5 for summaries/profile updates) |
+| AI conversation | Claude API (Haiku 4.5 for live chat **during dev**; switch to Sonnet 4.6 for production) |
 | Document ingestion | Claude Sonnet 4.6 (200K context — no Gemini; one API, one key, one SDK) |
 | Database + auth + storage | Supabase (Postgres, Auth, Storage) |
 | Front end | Single HTML file — GitHub Pages |

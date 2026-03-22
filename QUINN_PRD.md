@@ -417,8 +417,8 @@ Nothing in v1 needs to be rebuilt. It needs to be extended.
 
 | Model | Input (per 1M tokens) | Output (per 1M tokens) | Best For |
 |---|---|---|---|
-| **Claude Sonnet 4.6** | $3.00 | $15.00 | Quinn live conversations — recommended |
-| **Claude Haiku 4.5** | $1.00 | $5.00 | Session summary writes, profile updates |
+| **Claude Sonnet 4.6** | $3.00 | $15.00 | Quinn live conversations — production target |
+| **Claude Haiku 4.5** | $0.25 | $1.25 | **Currently used for live chat (dev cost savings)**; also summaries + profile updates |
 | **Claude Opus 4.6** | $5.00 | $25.00 | Not needed for Quinn |
 
 **Key cost optimizers:**
@@ -448,7 +448,7 @@ Assuming 3 kids, each having 4 conversations per week (~48 conversations/month t
 | **Light use** (1 conv/kid/week) | 12 | ~$0.60 | ~$0.25 |
 | **Heavy use** (daily, 3 kids) | 90 | ~$4.30 | ~$1.70 |
 
-**Bottom line for personal use:** Quinn costs roughly **$1–4/month** in API fees for your family with caching enabled. Extremely manageable.
+**Bottom line for personal use:** Projections above assumed caching working optimally and short sessions. Real-world observation: Sonnet 4.6 ran ~$3+/day with only one kid actively using the app during development. **Chat is temporarily switched to Haiku 4.5 to control dev costs** (~10x cheaper). Switch back to Sonnet 4.6 when all three kids are live and quality matters more than cost.
 
 ### 11.4 Cost at Commercial Scale
 
@@ -484,7 +484,7 @@ Don't use Sonnet for everything. Route tasks to the right model:
 
 | Task | Model | Reason |
 |---|---|---|
-| Live Quinn conversation | Sonnet 4.6 | Needs the warmth and quality |
+| Live Quinn conversation | Haiku 4.5 (dev) / Sonnet 4.6 (prod) | Haiku saves ~$3/day during dev; switch to Sonnet when all kids live |
 | Session summary write | Haiku 4.5 | Structured task, quality not critical |
 | Learner profile update | Haiku 4.5 | JSON update, deterministic |
 | Document ingestion | Gemini file API | Better suited, separate cost |
