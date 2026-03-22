@@ -5,6 +5,32 @@
 
 ---
 
+## ⚠️ CURRENT BLOCKERS
+
+These two issues are blocking real use of the app. Fix before anything else.
+
+### 🔴 1. Chat is broken in production ("having trouble, try again" on every message)
+
+Most likely cause: Edge Functions not deployed and/or `ANTHROPIC_API_KEY` secret not set.
+
+**Steps to fix:**
+1. `supabase functions deploy chat summarize update-profile ingest-material`
+2. `supabase secrets set ANTHROPIC_API_KEY=<your-key>`
+3. Check Edge Function logs: Supabase Dashboard → Edge Functions → chat → Logs (shows the exact error)
+4. If secrets are already set, redeploy: `supabase functions deploy chat --no-verify-jwt`
+
+### 🟠 2. OpenDyslexic still not rendering on iOS (two fix attempts, still broken)
+
+Two rounds of fixes attempted (base64 embed, dynamic style injection, timing fix, SW cache bump) — still not working on device.
+
+**Next things to try at the desk:**
+- Open Quinn in **Safari directly** (not as a PWA) — if font renders there but not in the PWA, it's a service worker cache issue.
+- **Remote DevTools**: plug iPhone into Mac → Safari → Develop → [iPhone name] → inspect Quinn. Check console for font errors; check Computed styles on a chat message to see what `font-family` is actually applied.
+- If computed styles show `OpenDyslexic` but it still looks wrong, iOS may be substituting a system font due to format mismatch → try adding a `woff` fallback alongside the `woff2` base64.
+- **Nuclear option**: serve the font file separately as `icons/OpenDyslexic-Regular.woff2` (already generated in the icons pipeline) and reference it with a relative path in `@font-face` instead of base64. Some iOS versions handle file-relative references more reliably than data URIs.
+
+---
+
 ## Version
 
 **Current: `v0.3.0`**
@@ -379,6 +405,18 @@ Wiring:
 ---
 
 ## Needs Jason
+
+- 🔴 **URGENT — Chat broken in production** — "having trouble, try again" on every message. Most likely Edge Functions not deployed and/or `ANTHROPIC_API_KEY` not set. Fix:
+  1. `supabase functions deploy chat summarize update-profile ingest-material`
+  2. `supabase secrets set ANTHROPIC_API_KEY=<your-key>`
+  3. Check logs: Supabase Dashboard → Edge Functions → chat → Logs
+  4. If secrets already set, redeploy: `supabase functions deploy chat --no-verify-jwt`
+
+- 🟠 **URGENT — OpenDyslexic still not rendering on iOS** — Two fix attempts (base64 embed, dynamic style injection, timing fix, SW cache bump) still not working on device. Next steps:
+  1. Open Quinn in Safari directly (not as PWA) — if font works there, it's a SW cache issue
+  2. Remote DevTools: plug iPhone into Mac → Safari → Develop → [iPhone name] → inspect Quinn → check console for font errors + Computed styles
+  3. If computed styles show `OpenDyslexic` but renders wrong → add `woff` fallback alongside `woff2` base64
+  4. Nuclear option: serve `icons/OpenDyslexic-Regular.woff2` as a file with a relative path in `@font-face` instead of base64 (already generated in icons pipeline)
 
 - **Dev logging setup** — Migration + secrets needed before logging activates:
   1. Run `supabase/migrations/002_dev_logs.sql` in Supabase SQL editor
