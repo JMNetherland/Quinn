@@ -1010,10 +1010,14 @@ function buildGreeting(kid, lp, summaries, exams) {
     return `Hey ${name}. How are you feeling today?`;
   }
   if (exams.length > 0) {
-    const next    = exams[0];
-    const dateStr = new Date(next.exam_date + 'T12:00:00')
-      .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `Hey ${name}! You've got ${next.subject} on ${dateStr}. Want to work on that, or something else on your mind?`;
+    const next     = exams[0];
+    const examDate = new Date(next.exam_date + 'T12:00:00');
+    const daysOut  = Math.ceil((examDate - new Date()) / (1000 * 60 * 60 * 24));
+    if (daysOut <= 2) {
+      // Only lead with the exam when it's imminent — Quinn surfaces it naturally in conversation otherwise
+      const dayWord = daysOut === 1 ? 'tomorrow' : `in ${daysOut} days`;
+      return `Hey ${name}! Just a heads up — you've got ${next.subject} ${dayWord}. No pressure, just wanted to mention it.`;
+    }
   }
   const interests = pj.interests;
   if (Array.isArray(interests) && interests.length > 0) {
