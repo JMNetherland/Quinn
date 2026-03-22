@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-21 (Session 11)
+> Last updated: 2026-03-21 (Session 12)
 
 ---
 
@@ -387,7 +387,7 @@ Wiring:
   4. `supabase functions deploy chat` to pick up the new env vars
   5. To read logs: query `dev_logs` table in Supabase Table Editor, order by `created_at desc`
 
-- **Bella dyslexia font** — ✅ Done. Set `stable.dyslexia_font = true` in `learner_profiles` via SQL for each kid that needs it. Font loads from cdnfonts.com CDN, applied on login via `applyDyslexiaFont()`.
+- **Bella dyslexia font** — ✅ Done. Set `stable.dyslexia_font = true` in `learner_profiles` via SQL for each kid that needs it. Font is base64-embedded (no network), applied on login via `applyDyslexiaFont()` with dynamic `<style>` injection for iOS reliability.
 - **Multi-parent dashboard access** — v1 limitation: only Jason's account sees the parent dashboard. Keri can use Jason's login for now. Schema change needed for dual-parent support.
 - **Kid profile editing from dashboard** — no edit form for name/age/grade yet. Use SQL editor for corrections in the meantime.
 
@@ -678,6 +678,46 @@ One of the kids (observed with Joie, age 13 — [confirm with Jason if it was a 
 - **Deploy**: `git push origin main` — GitHub Pages will auto-deploy. The new SW cache name will force all existing visitors to pick up the new version on next load.
 - **Test "Add to Home Screen" on iPhone**: Open Quinn in Safari → Share → Add to Home Screen. The app should install with the Quinn icon and open in standalone mode (no browser chrome).
 - **Test on Android**: Open Quinn in Chrome → three-dot menu → "Add to Home screen" or the install prompt may appear automatically.
+
+---
+
+---
+
+### Session 12 — 2026-03-21 (follow-up fix: Bella dyslexia font on iOS)
+
+#### Problem
+OpenDyslexic font still not rendering on iOS after Session 11's base64 embed fix.
+
+#### Root cause analysis
+Three compounding issues:
+1. **Timing** — `applyDyslexiaFont()` was called *before* `showView('chat')` and before chat message elements existed in the visible DOM. iOS Safari's rendering engine sometimes ignores style changes applied before a view becomes visible.
+2. **No dynamic style injection** — toggling `body.dyslexia-font` CSS class alone is not enough on iOS. The class toggle happens, but iOS doesn't always re-evaluate font rendering for elements created after the initial layout pass.
+3. **`*` selector missing** — the CSS rule covered specific element types (`div`, `span`, `p`, etc.) but not everything. Some message containers may have been missed.
+
+#### Work completed
+
+**1. `<style id="dyslexia-style">` added to `<head>` (`index.html`)**
+- Empty at load time; populated at runtime by `applyDyslexiaFont()` to force a CSS recalculation
+
+**2. `applyDyslexiaFont()` rewritten (`index.html`)**
+- Keeps the existing `body.dyslexia-font` class toggle (backward compatible)
+- After `document.fonts.load()` resolves, injects CSS rules directly into `#dyslexia-style` using `* { font-family: 'OpenDyslexic' !important }` plus explicit chat/MG selectors
+- When disabled: clears injected rules (empty string)
+
+**3. Call-site timing fixed (`index.html`)**
+- `await applyDyslexiaFont(lp?.profile_json)` moved from *before* `showView('chat')` to *after* it
+- Font injection now fires when the chat view is visible and all DOM elements exist — iOS re-renders immediately
+
+**4. `sw.js` CACHE_NAME bumped to `quinn-v0.3.1`**
+- Forces iOS PWA to fetch fresh `index.html` instead of serving the old cached version
+
+#### Files changed
+- `index.html` — `<style id="dyslexia-style">` in `<head>`, `applyDyslexiaFont()` rewrite, call-site timing fix
+- `sw.js` — CACHE_NAME → `quinn-v0.3.1`
+- `HANDOFF.md` — this update
+
+#### Deploy
+- `git push origin main` — SW cache bump forces all visitors to receive the updated files
 
 ---
 

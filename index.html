@@ -730,6 +730,8 @@ body.dyslexia-font div {
 .empty-state { color: var(--text-3); font-size: 0.78rem; font-style: italic; }
 
 </style>
+<!-- Dyslexia font override — populated at runtime by applyDyslexiaFont() to force iOS re-render -->
+<style id="dyslexia-style"></style>
 </head>
 <body>
 
@@ -971,11 +973,11 @@ async function routeUser(userId, errorEl) {
   currentDriftScore     = 0;
   devSessionId          = crypto.randomUUID();
 
-  await applyDyslexiaFont(lp?.profile_json);
   document.getElementById('chat-messages').innerHTML = '';
   const greeting = buildGreeting(kid, lp, sessionSummaries, upcomingExams);
   addQuinnMsg('chat', greeting);
   showView('chat');
+  await applyDyslexiaFont(lp?.profile_json);  // after showView so DOM is visible when style injection fires
   speakQuinn(greeting);
 }
 
@@ -1118,8 +1120,23 @@ function toggleMic(view) {
 async function applyDyslexiaFont(profile_json) {
   const enabled = profile_json?.stable?.dyslexia_font === true;
   document.body.classList.toggle('dyslexia-font', enabled);
+  const dyslexiaStyle = document.getElementById('dyslexia-style');
   if (enabled) {
     try { await document.fonts.load('400 1em OpenDyslexic'); } catch (e) { /* proceed with fallback */ }
+    // Dynamic style injection forces iOS Safari to re-evaluate font rendering immediately.
+    // A CSS class toggle alone is not enough — iOS sometimes ignores it after first render.
+    if (dyslexiaStyle) {
+      dyslexiaStyle.textContent = `
+        * { font-family: 'OpenDyslexic', sans-serif !important; }
+        .msg-text, .msg-quinn, .msg-kid,
+        #chat-messages, #chat-messages *,
+        #mg-messages, #mg-messages * {
+          font-family: 'OpenDyslexic', sans-serif !important;
+        }
+      `;
+    }
+  } else {
+    if (dyslexiaStyle) dyslexiaStyle.textContent = '';
   }
 }
 
