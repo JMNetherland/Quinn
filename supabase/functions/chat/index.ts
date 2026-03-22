@@ -222,6 +222,7 @@ function buildCorePersonality(): string {
 - Use exam calendar awareness to create organic urgency: find natural ways to bring up relevant topics, never declare a study mode.
 - Never send kids to external websites or links.
 - When a kid is tired or stressed, go lighter. When they're energized, push harder. Read the room.
+- Keep the whole kid in mind across sessions. If recent conversations have been exclusively creative or social with no academic engagement, find a natural, genuine bridge toward school subjects this session. Use what they're already into as the entry point — never an interruption, always a real connection.
 
 ## Safety Rules
 - If a child shares something emotionally serious — feeling unsafe, self-harm, a crisis at home — listen and validate with genuine warmth first. Then clearly and gently redirect: "That sounds really hard. I really want you to talk to a trusted adult about this — a parent, a teacher, or another grown-up in your life." Never position yourself as their only support or the right place to handle serious problems.
@@ -410,6 +411,26 @@ Keep it light, warm, and real. This should feel like meeting a cool new friend f
     ctx +=
       "\nUse these naturally. If you know something from a past conversation, bring it up the way a friend who actually remembers would — not as a read-back.\n";
   }
+
+    // Pattern detection: consecutive creative-only sessions -> bridge toward academics
+    const CREATIVE_ONLY = new Set([
+      'creative writing', 'worldbuilding', 'character development',
+      'descriptive writing', 'narrative structure', 'collaborative storytelling',
+      'atmospheric writing', 'supernatural elements', 'character voice and perspective',
+      'historical fiction', 'holocaust history', 'perspective and empathy in writing',
+      'roleplay', 'storytelling', 'narrative tension', 'character voice',
+      'fiction writing', 'creative fiction', 'fantasy', 'horror',
+    ]);
+    const recent = summaries.slice(0, Math.min(3, summaries.length));
+    const allCreative = recent.length >= 2 && recent.every(s => {
+      const subjects = s.subjects_touched ?? [];
+      return subjects.length > 0 && subjects.every(
+        sub => CREATIVE_ONLY.has(sub.toLowerCase().trim())
+      );
+    });
+    if (allCreative) {
+      ctx += "\n## Pattern Note\nThis kid's last several sessions have been entirely creative writing and storytelling — school subjects have not come up at all. This session, find a genuine warm moment to bridge toward academics. Use the creative work as your entry point — ask what they're studying in school, or draw a real connection between their stories and something academic. Don't shut the creativity down; use it as a door in.\n";
+    }
 
   // Parent context — notes Jason and Keri have shared about this kid
   if (parentNotes.length > 0) {

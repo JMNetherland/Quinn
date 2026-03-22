@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-21 (Session 12)
+> Last updated: 2026-03-22 (Session 13)
 
 ---
 
@@ -757,6 +757,34 @@ Three compounding issues:
 
 #### Deploy
 - `git push origin main` — SW cache bump forces all visitors to receive the updated files
+
+---
+
+### Session 13 — 2026-03-22
+
+#### Work completed
+
+**1. Fixed chat Edge Function multiline string parse error (`supabase/functions/chat/index.ts`)**
+- Previous session's Python-based edit wrote a literal multiline string (`ctx += "\n..."` with actual newlines) instead of `\n` escape sequences, which is illegal JavaScript
+- Deno bundler threw `Expected ident` at line 433 (`## Pattern Note`) on deploy
+- Fix: rewrote the `ctx +=` string as a single-line string with `\n` escapes using the Edit tool
+- Also removed an orphaned `}` that the Python script had left behind (the closing brace of `if (summaries.length > 0)` was displaced, creating an `Expression expected` error at line 464)
+- Deployed successfully: `supabase functions deploy chat`
+
+**2. Academic bridging for Joie now live**
+- Pattern detection + `## Pattern Note` injection into system prompt was written last session but never deployed (blocked by parse errors)
+- Detects when last 2–3 sessions are entirely creative writing / roleplay subjects (using `CREATIVE_ONLY` Set)
+- When triggered, appends a Pattern Note to Quinn's context instructing it to find a genuine warm bridge toward academics this session
+- Core personality instruction also updated to always keep academics in mind and use creative interests as an entry point
+- This is now live in production
+
+#### Files changed
+- `supabase/functions/chat/index.ts` — fixed multiline string (pattern detection `ctx +=`), removed orphaned `}`
+- `HANDOFF.md` — this update
+
+#### Pending verification
+- Confirm Joie's next session naturally bridges toward academics when pattern is active (3 consecutive creative-only sessions = pattern fires)
+- `session_summaries_rows.json` in repo root is a leftover debug file — delete before next session or add to `.gitignore`
 
 ---
 
