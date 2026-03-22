@@ -1,4 +1,5 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,6 +84,7 @@ Deno.serve(async (req: Request) => {
       parent_notes = [],
       material_summaries = [],
       drift_score = 0,
+      session_id,
     }: {
       message: string;
       kid_id: string;
@@ -94,7 +96,10 @@ Deno.serve(async (req: Request) => {
       parent_notes: ParentNote[];
       material_summaries: MaterialSummary[];
       drift_score?: number;
+      session_id?: string;
     } = body;
+
+    const devLogging = Deno.env.get("DEV_LOGGING_ENABLED") === "true";
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
@@ -140,6 +145,34 @@ Deno.serve(async (req: Request) => {
 
     const text =
       response.content[0]?.type === "text" ? response.content[0].text : "";
+
+    // Dev logging — fire-and-forget; never blocks or fails the chat response
+    if (devLogging) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (supabaseUrl && serviceRoleKey) {
+        const adminClient = createClient(supabaseUrl, serviceRoleKey);
+        const now = new Date().toISOString();
+        Promise.all([
+          adminClient.from("dev_logs").insert({
+            session_id: session_id ?? null,
+            kid_id: kid_id ?? null,
+            role: "user",
+            content: message,
+            drift_score: drift_score,
+            created_at: now,
+          }),
+          adminClient.from("dev_logs").insert({
+            session_id: session_id ?? null,
+            kid_id: kid_id ?? null,
+            role: "assistant",
+            content: text,
+            drift_score: drift_score,
+            created_at: now,
+          }),
+        ]).catch((err) => console.error("[dev_logs] write failed:", err));
+      }
+    }
 
     return new Response(
       JSON.stringify({ response: text, usage: response.usage }),

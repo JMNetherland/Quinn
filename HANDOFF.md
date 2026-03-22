@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-21 (Session 9)
+> Last updated: 2026-03-21 (Session 10)
 
 ---
 
@@ -141,6 +141,7 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | quinn-version-bump skill | ✅ Created |
 | Bella dyslexia font | ✅ Complete |
 | Roleplay guardrails (identity anchoring + drift detection) | ✅ Complete |
+| Dev chat logging (flag-gated, fire-and-forget) | ✅ Complete |
 
 ---
 
@@ -378,6 +379,13 @@ Wiring:
 
 ## Needs Jason
 
+- **Dev logging setup** — Migration + secrets needed before logging activates:
+  1. Run `supabase/migrations/002_dev_logs.sql` in Supabase SQL editor
+  2. `supabase secrets set DEV_LOGGING_ENABLED=true` (enable) or `false` (disable)
+  3. `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>` — found in Supabase Dashboard → Settings → API → service_role. **Keep this secret — never put it in client-side code.**
+  4. `supabase functions deploy chat` to pick up the new env vars
+  5. To read logs: query `dev_logs` table in Supabase Table Editor, order by `created_at desc`
+
 - **Bella dyslexia font** — ✅ Done. Set `stable.dyslexia_font = true` in `learner_profiles` via SQL for each kid that needs it. Font loads from cdnfonts.com CDN, applied on login via `applyDyslexiaFont()`.
 - **Multi-parent dashboard access** — v1 limitation: only Jason's account sees the parent dashboard. Keri can use Jason's login for now. Schema change needed for dual-parent support.
 - **Kid profile editing from dashboard** — no edit form for name/age/grade yet. Use SQL editor for corrections in the meantime.
@@ -575,6 +583,44 @@ One of the kids (observed with Joie, age 13 — [confirm with Jason if it was a 
 #### Deploy required
 - `supabase functions deploy chat`
 - `supabase functions deploy summarize`
+
+---
+
+---
+
+### Session 10 — 2026-03-21
+
+#### Work completed
+
+**1. SQL migration — `dev_logs` table (`supabase/migrations/002_dev_logs.sql`)** — new
+- Columns: `id`, `session_id` (uuid), `kid_id` (FK → kids, cascade delete), `role` (user/assistant check), `content`, `drift_score`, `created_at`
+- RLS enabled with a `"No client access"` policy (`for all using (false)`) — table is write-only from the Edge Function, never readable from client JS
+- Safe to deploy to production schema; zero data is written unless `DEV_LOGGING_ENABLED=true` in Edge Function env
+
+**2. Edge Function — `chat` updated (`supabase/functions/chat/index.ts`)**
+- Added `import { createClient } from "npm:@supabase/supabase-js@2"` for server-side admin writes
+- Reads `DEV_LOGGING_ENABLED` from Deno env; all logging logic is gated behind this flag
+- Accepts `session_id` (optional uuid) in the request body; passed through to dev_logs rows
+- After getting Claude's response, if `devLogging=true`: creates Supabase admin client using `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (service role bypasses RLS), then fire-and-forget inserts both the user message and Quinn's response to `dev_logs` — a `.catch()` logs any failure but never throws
+- Admin client is instantiated lazily inside the logging block (only when flag is on)
+
+**3. `index.html` — `devSessionId` wiring**
+- Added `let devSessionId = null` to session state variables
+- `devSessionId = crypto.randomUUID()` set in `routeUser` (returning kid → chat) and `saveMeetGreetProfile` (MG → chat transition) alongside other session inits
+- `session_id: devSessionId` added to every `supabase.functions.invoke('chat', ...)` payload in `sendMessage`
+- `devSessionId = null` reset in `signOut()`
+
+#### Files changed
+- `supabase/migrations/002_dev_logs.sql` — **new**
+- `supabase/functions/chat/index.ts` — dev logging block, session_id payload field
+- `index.html` — devSessionId state var, routeUser init, saveMeetGreetProfile init, sendMessage payload, signOut reset
+- `HANDOFF.md` — this update
+
+#### Deploy required
+- Run `002_dev_logs.sql` in Supabase SQL editor
+- `supabase secrets set DEV_LOGGING_ENABLED=true` (or false to disable)
+- `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<key>`
+- `supabase functions deploy chat`
 
 ---
 

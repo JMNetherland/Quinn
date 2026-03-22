@@ -843,6 +843,7 @@ let lastSummaryAt          = 0;             // conversationHistory.length at las
 let inactivityTimer        = null;           // setTimeout handle
 let sessionEnded           = false;          // prevents double finalization
 let currentDriftScore      = 0;             // 0-10 drift score from last summary; passed to next chat call
+let devSessionId           = null;          // uuid per chat session; sent to Edge Function for dev_logs
 const SESSION_INACTIVITY_MS = 5 * 60 * 1000; // 5 minutes
 
 // ── Router ────────────────────────────────────────────────────────────────────
@@ -948,6 +949,7 @@ async function routeUser(userId, errorEl) {
   lastSummaryAt         = 0;
   sessionEnded          = false;
   currentDriftScore     = 0;
+  devSessionId          = crypto.randomUUID();
 
   await applyDyslexiaFont(lp?.profile_json);
   document.getElementById('chat-messages').innerHTML = '';
@@ -1126,6 +1128,7 @@ async function signOut() {
   lastSummaryAt         = 0;
   sessionEnded          = false;
   currentDriftScore     = 0;
+  devSessionId          = null;
   showView('signin');
 }
 
@@ -1220,6 +1223,7 @@ async function sendMessage(view) {
       parent_notes:         parentNotes,
       material_summaries:   materialSummaries,
       drift_score:          currentDriftScore,
+      session_id:           devSessionId,
     };
     if (view === 'mg') body.is_first_meeting = true;
 
@@ -1335,6 +1339,7 @@ async function saveMeetGreetProfile() {
   currentSessionSummary = null;
   sessionEnded          = false;
   currentDriftScore     = 0;
+  devSessionId          = crypto.randomUUID();
 
   // Move the visual messages from MG container into the chat container
   const mgMessages   = document.getElementById('mg-messages');
