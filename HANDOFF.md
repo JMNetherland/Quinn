@@ -667,6 +667,12 @@ One of the kids (observed with Joie, age 13 — [confirm with Jason if it was a 
 - `sw.js` — precache on install, three-strategy fetch, CACHE_NAME → quinn-v0.3.0
 - `HANDOFF.md` — this update
 
+#### Hotfix (same session) — OpenDyslexic font not rendering on iOS
+- **Root cause**: `@font-face` was pointing to `fonts.cdnfonts.com/s/19808/OpenDyslexic-Regular.woff` — that CDN has unreliable CORS headers on iOS Safari, causing the font request to fail silently, falling back to system sans-serif
+- **Fix**: Downloaded OpenDyslexic-Regular.woff2 (101 KB) and embedded it as a base64 data URI directly in the `@font-face` block — zero network dependency, no CORS involved
+- **Also changed**: `font-display: block` → `font-display: swap` (prevents invisible text if font somehow fails); added `!important` to `font-family` in `.dyslexia-font` rule and expanded selectors to cover `p`, `span`, `div` (iOS specificity edge cases)
+- `index.html` size: ~76 KB → ~214 KB (base64 adds ~134 KB — well within PWA budget)
+
 #### Needs Jason
 - **Replace placeholder icons** — drop real artwork PNGs into `Quinn/icons/` using the same filenames and sizes. No other code changes needed.
 - **Deploy**: `git push origin main` — GitHub Pages will auto-deploy. The new SW cache name will force all existing visitors to pick up the new version on next load.
