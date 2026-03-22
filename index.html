@@ -975,9 +975,9 @@ async function routeUser(userId, errorEl) {
 
   document.getElementById('chat-messages').innerHTML = '';
   const greeting = buildGreeting(kid, lp, sessionSummaries, upcomingExams);
-  addQuinnMsg('chat', greeting);
   showView('chat');
-  await applyDyslexiaFont(lp?.profile_json);  // after showView so DOM is visible when style injection fires
+  await applyDyslexiaFont(lp?.profile_json);  // before addQuinnMsg so font is active when text first renders
+  addQuinnMsg('chat', greeting);
   speakQuinn(greeting);
 }
 
@@ -1134,6 +1134,7 @@ async function applyDyslexiaFont(profile_json) {
           font-family: 'OpenDyslexic', sans-serif !important;
         }
       `;
+      void document.body.offsetHeight; // force iOS reflow so injected styles take effect immediately
     }
   } else {
     if (dyslexiaStyle) dyslexiaStyle.textContent = '';
@@ -1385,6 +1386,7 @@ async function saveMeetGreetProfile() {
   while (mgMessages.firstChild) chatMessages.appendChild(mgMessages.firstChild);
 
   showView('chat');
+  await applyDyslexiaFont(learnerProfile?.profile_json); // MG→chat: apply dyslexia font before messages are visible
   resetInactivityTimer();
 }
 
