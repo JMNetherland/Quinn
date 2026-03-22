@@ -406,28 +406,29 @@ Wiring:
 
 ## Needs Jason
 
-- 🔴 **URGENT — Chat broken in production** — "having trouble, try again" on every message. Most likely Edge Functions not deployed and/or `ANTHROPIC_API_KEY` not set. Fix:
-  1. `supabase functions deploy chat summarize update-profile ingest-material`
-  2. `supabase secrets set ANTHROPIC_API_KEY=<your-key>`
-  3. Check logs: Supabase Dashboard → Edge Functions → chat → Logs
-  4. If secrets already set, redeploy: `supabase functions deploy chat --no-verify-jwt`
+- **Dev logging — run the SQL migration** — The `dev_logs` table does not exist in production yet. Everything else is configured (`DEV_LOGGING_ENABLED=false` secret is set, `SUPABASE_SERVICE_ROLE_KEY` is auto-injected by Supabase). To activate logging when you want to inspect real conversations:
+  1. Run `supabase/migrations/002_dev_logs.sql` in Supabase SQL Editor
+  2. `supabase secrets set DEV_LOGGING_ENABLED=true`
+  3. To read logs: Supabase Table Editor → `dev_logs`, order by `created_at desc`
+  4. Turn off when done: `supabase secrets set DEV_LOGGING_ENABLED=false`
 
-- 🟠 **URGENT — OpenDyslexic still not rendering on iOS** — Two fix attempts (base64 embed, dynamic style injection, timing fix, SW cache bump) still not working on device. Next steps:
-  1. Open Quinn in Safari directly (not as PWA) — if font works there, it's a SW cache issue
-  2. Remote DevTools: plug iPhone into Mac → Safari → Develop → [iPhone name] → inspect Quinn → check console for font errors + Computed styles
-  3. If computed styles show `OpenDyslexic` but renders wrong → add `woff` fallback alongside `woff2` base64
-  4. Nuclear option: serve `icons/OpenDyslexic-Regular.woff2` as a file with a relative path in `@font-face` instead of base64 (already generated in icons pipeline)
+- **Enable OpenDyslexic for Bella** — Set the flag in production via Supabase SQL Editor:
+  ```sql
+  UPDATE learner_profiles
+  SET profile_json = jsonb_set(profile_json, '{stable,dyslexia_font}', 'true')
+  WHERE kid_id = (SELECT id FROM kids WHERE name = 'Bella');
+  ```
 
-- **Dev logging setup** — Migration + secrets needed before logging activates:
-  1. Run `supabase/migrations/002_dev_logs.sql` in Supabase SQL editor
-  2. `supabase secrets set DEV_LOGGING_ENABLED=true` (enable) or `false` (disable)
-  3. `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>` — found in Supabase Dashboard → Settings → API → service_role. **Keep this secret — never put it in client-side code.**
-  4. `supabase functions deploy chat` to pick up the new env vars
-  5. To read logs: query `dev_logs` table in Supabase Table Editor, order by `created_at desc`
+- **Clean up misnamed SSH key files** — Two junk files exist in the Quinn repo root from a botched SSH setup attempt. Delete them:
+  ```bash
+  cd C:\Dev\personal\web-apps\Quinn
+  git rm "# 1. Generate a key (accept all defaults, no passphrase needed)"
+  git rm "# 1. Generate a key (accept all defaults, no passphrase needed).pub"
+  git commit -m "chore: remove misnamed files from SSH setup"
+  git push
+  ```
 
-- **Bella dyslexia font** — ✅ Done. Set `stable.dyslexia_font = true` in `learner_profiles` via SQL for each kid that needs it. Font is base64-embedded (no network), applied on login via `applyDyslexiaFont()` with dynamic `<style>` injection for iOS reliability.
-- **Multi-parent dashboard access** — v1 limitation: only Jason's account sees the parent dashboard. Keri can use Jason's login for now. Schema change needed for dual-parent support.
-- **Kid profile editing from dashboard** — no edit form for name/age/grade yet. Use SQL editor for corrections in the meantime.
+- **Verify session summaries write in production** — Sign in as a test kid, have a short conversation, then leave the tab idle for 5+ minutes. Check Supabase Table Editor → `session_summaries` to confirm a row was written. This has never been confirmed working in production.
 
 ---
 
