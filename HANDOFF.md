@@ -33,7 +33,7 @@ Two rounds of fixes attempted (base64 embed, dynamic style injection, timing fix
 
 ## Version
 
-**Current: `v0.3.0`**
+**Current: `v0.3.2`**
 
 | Bump | When |
 |---|---|
