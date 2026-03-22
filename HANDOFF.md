@@ -1,13 +1,13 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-21 (Session 10)
+> Last updated: 2026-03-21 (Session 11)
 
 ---
 
 ## Version
 
-**Current: `v0.2.0`**
+**Current: `v0.3.0`**
 
 | Bump | When |
 |---|---|
@@ -15,7 +15,7 @@
 | MINOR (0.**x**.0) | New feature shipped and tested |
 | MAJOR (**x**.0.0) | `1.0.0` = production-ready, all kids using it |
 
-Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.2.0`.
+Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.3.0`.
 
 ---
 
@@ -142,6 +142,7 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Bella dyslexia font | ✅ Complete |
 | Roleplay guardrails (identity anchoring + drift detection) | ✅ Complete |
 | Dev chat logging (flag-gated, fire-and-forget) | ✅ Complete |
+| PWA support (manifest, icons, iOS meta tags, sw.js update) | ✅ Complete |
 
 ---
 
@@ -621,6 +622,56 @@ One of the kids (observed with Joie, age 13 — [confirm with Jason if it was a 
 - `supabase secrets set DEV_LOGGING_ENABLED=true` (or false to disable)
 - `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<key>`
 - `supabase functions deploy chat`
+
+---
+
+---
+
+### Session 11 — 2026-03-21
+
+#### Work completed
+
+**1. PWA icons — `Quinn/icons/` (new folder)**
+- Python/Pillow script (`generate_icons.py`) generates all icons from source — re-run it to regenerate
+- Square icons (dark indigo #1a1035 background, white "Q"): 72, 96, 128, 144, 152, 192, 384, 512px
+- Apple touch icon: 180×180 (same design, `icons/apple-touch-icon.png`)
+- iOS splash screens (dark bg #0d0d1a, centered "Q"): 1170×2532, 1284×2778, 750×1334
+
+**2. `manifest.json` — new**
+- `start_url` / `scope`: `/Quinn/` — correct for GitHub Pages subpath deployment
+- `display: standalone` — hides browser chrome when installed
+- `background_color: #0d0d1a`, `theme_color: #1a1035` — matches Quinn's dark UI
+- 8 icon sizes declared; 192 and 512 marked `purpose: "any maskable"`
+
+**3. `index.html` — PWA meta tags**
+- Added after Google Fonts `<link>`, before `<style>`:
+  - `<link rel="manifest">`, `theme-color`, `mobile-web-app-capable`
+  - Full iOS PWA set: `apple-mobile-web-app-capable`, status bar style, title, `apple-touch-icon`
+  - Three iOS splash screen `<link>` tags (iPhone SE/8, 12/13/14, Pro Max)
+- `APP_VERSION` bumped to `0.3.0` (MINOR — new feature)
+
+**4. `sw.js` — updated**
+- `CACHE_NAME` bumped to `quinn-v0.3.0` — evicts all old caches on next load
+- Install step now precaches all 13 icon/manifest assets before `skipWaiting()`
+- Three fetch strategies:
+  - **Navigate** (HTML shell): network-first, cache fallback — unchanged
+  - **Icons + manifest**: cache-first + background network update (stale-while-revalidate)
+  - **Other same-origin assets**: cache-first — unchanged
+- Cross-origin guard unchanged (Supabase/CDN still pass through untouched)
+
+#### Files changed
+- `Quinn/icons/` — **new folder**, 12 PNG files
+- `Quinn/generate_icons.py` — **new** (keep for regenerating icons later)
+- `Quinn/manifest.json` — **new**
+- `index.html` — PWA meta tags in `<head>`, APP_VERSION → 0.3.0
+- `sw.js` — precache on install, three-strategy fetch, CACHE_NAME → quinn-v0.3.0
+- `HANDOFF.md` — this update
+
+#### Needs Jason
+- **Replace placeholder icons** — drop real artwork PNGs into `Quinn/icons/` using the same filenames and sizes. No other code changes needed.
+- **Deploy**: `git push origin main` — GitHub Pages will auto-deploy. The new SW cache name will force all existing visitors to pick up the new version on next load.
+- **Test "Add to Home Screen" on iPhone**: Open Quinn in Safari → Share → Add to Home Screen. The app should install with the Quinn icon and open in standalone mode (no browser chrome).
+- **Test on Android**: Open Quinn in Chrome → three-dot menu → "Add to Home screen" or the install prompt may appear automatically.
 
 ---
 
