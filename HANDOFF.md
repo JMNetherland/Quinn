@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-22 (Session 14)
+> Last updated: 2026-03-22 (Session 15)
 
 ---
 
@@ -832,6 +832,52 @@ Three compounding issues:
 supabase functions deploy chat summarize update-profile ingest-material --no-verify-jwt
 ```
 This unblocks all Edge Function calls. No new code changes in Edge Functions themselves — client-side only.
+
+---
+
+### Session 15 — 2026-03-22
+
+#### Context
+
+Joie (age 13) pulled Quinn into a sustained creative fiction session — a rich multi-paragraph horse story, narrated in third person, with Quinn acting as co-author and ending messages with "What happens next?" Quinn was technically following the identity rules (author, not character) but was completely off-mission: indefinitely extending a fiction with no educational connection.
+
+#### Root cause
+
+The existing drift scoring instructions didn't explicitly identify creative co-authorship as a high-drift pattern. The drift threshold in the chat Edge Function (7) was too high for this pattern to trigger a steering note, and there was no explicit rule in Quinn's personality about capping creative writing sessions.
+
+#### Work completed
+
+**1. Creative Writing Drift rule — `chat/index.ts` (Block 1, core personality)**
+- Added `### Creative Writing Drift` subsection under `## Identity & Roleplay Boundaries`
+- Explicit 2-3 exchange limit on sustained fiction with no connection to real life or schoolwork
+- Hard rule: Quinn never ends a creative message with an open-ended invitation to continue ("What happens next?", "Your turn", "What do you do?")
+- Quinn redirects naturally: acknowledges the creative work, then bridges to real life or academics
+
+**2. Drift trigger threshold lowered — `chat/index.ts` (Block 2)**
+- `driftScore >= 7` → `driftScore >= 5` in `buildKidContext()`
+- The steering note now fires earlier, before creative sessions become deeply entrenched
+- Note: `index.html` was already storing drift scores at `>= 5` threshold — no change needed there
+
+**3. Drift scoring updated — `summarize/index.ts`**
+- Added explicit scoring bands for creative writing drift:
+  - Score 6-8: Sustained creative co-authorship with no academic connection
+  - Score 8-10: Quinn asking "What happens next?" / 3+ messages of pure creative content / co-authoring extended fiction
+- Haiku now has explicit criteria to score the Joie-style pattern highly instead of treating it as normal creative discussion
+
+**4. Creative interest note — `chat/index.ts` (Block 2, `buildKidContext()`)**
+- Added profile-aware creative interest detection (checks `interests` array and `communication_style` for creative/artistic keywords)
+- When triggered: injects a `## Creative Interest Note` into the kid-specific context reminding Quinn to use creativity as a bridge, not an open-ended destination
+- Not hardcoded to Joie — fires for any kid whose profile signals creative tendencies
+
+#### Files changed
+- `supabase/functions/chat/index.ts` — Creative Writing Drift rule in Block 1, threshold `>= 7` → `>= 5`, creative interest note in `buildKidContext()`
+- `supabase/functions/summarize/index.ts` — updated drift scoring bands
+- `HANDOFF.md` — this update
+
+#### Deploy required
+```
+supabase functions deploy chat summarize --no-verify-jwt
+```
 
 ---
 

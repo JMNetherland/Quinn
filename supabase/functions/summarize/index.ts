@@ -85,9 +85,11 @@ Produce an updated session summary JSON object. Follow these rules exactly:
 - **readiness_estimate**: Object keyed by subject name (matching entries in subjects_touched). Values are 1–5 (1=very shaky, 3=mixed, 5=solid). Only include subjects where you have actual evidence from this session. Omit subjects where you cannot make a reasonable estimate. Merge with any existing estimates — update only where new evidence exists.
 - **drift_score**: Integer 0–10 assessing how much this conversation segment has drifted away from Quinn's purpose. Score honestly:
   - 0 = entirely on-task (academic help, personal sharing, real-life conversation, casual friendship talk)
-  - 5 = mixed (some roleplay or off-topic content alongside real conversation)
-  - 10 = fully drifted (the entire segment is roleplay, sustained fictional scenarios, or the kid persistently asking Quinn to be a different character)
-  This score should only be high (7+) when Quinn is actively being pulled away from its own identity into a sustained first-person fictional persona — not for normal creative discussion, storytelling help, or casual off-topic chat. Always set this field; use the full conversation segment for context, not just the most recent message.
+  - 3 = light off-topic drift — a few messages of casual chat, a creative tangent that stayed brief
+  - 5 = mixed (some roleplay or off-topic content alongside real conversation; or 1-2 exchanges of co-writing fiction)
+  - 6-8 = sustained creative writing co-authorship with no academic connection — Quinn is writing fiction WITH the kid (multi-paragraph, back-and-forth narrative) rather than FOR the kid's schoolwork or briefly engaging then redirecting
+  - 8-10 = Quinn is asking "What happens next?" or acting as co-author of extended fiction; has written 3+ messages of pure creative content with no real-world connection; or the entire segment is roleplay / sustained fictional scenarios / the kid persistently asking Quinn to be a different character
+  Always set this field; use the full conversation segment for context, not just the most recent message.
 
 Return ONLY the JSON object — no explanation, no markdown, no code block. Just the raw JSON.`;
 
