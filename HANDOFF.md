@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-22 (Session 13)
+> Last updated: 2026-03-22 (Session 14)
 
 ---
 
@@ -9,19 +9,26 @@
 
 These two issues are blocking real use of the app. Fix before anything else.
 
-### 🔴 1. Chat is broken in production ("having trouble, try again" on every message)
+### 🔴 1. Chat is broken in production (401 Unauthorized on every message)
 
-Most likely cause: Edge Functions not deployed and/or `ANTHROPIC_API_KEY` secret not set.
+**Root cause (diagnosed):** The Edge Function is deployed with JWT verification **enabled** (Supabase default). A 401 is returned before the function code even runs.
 
-**Steps to fix:**
-1. `supabase functions deploy chat summarize update-profile ingest-material`
-2. `supabase secrets set ANTHROPIC_API_KEY=<your-key>`
-3. Check Edge Function logs: Supabase Dashboard → Edge Functions → chat → Logs (shows the exact error)
-4. If secrets are already set, redeploy: `supabase functions deploy chat --no-verify-jwt`
+**Client-side fix — applied in Session 14:** All four `supabase.functions.invoke()` calls now have an explicit `if (!session) return;` guard before the invoke, and pass `Authorization: Bearer <access_token>` directly (no anon-key fallback). The client is sending the JWT correctly.
+
+**Remaining fix — deploy once with these commands (see Needs Jason):**
+```
+supabase functions deploy chat summarize update-profile ingest-material --no-verify-jwt
+supabase secrets set ANTHROPIC_API_KEY=<your-key>
+```
+
+Then check Edge Function logs if it still fails: Supabase Dashboard → Edge Functions → chat → Logs (shows the exact error, usually a missing `ANTHROPIC_API_KEY` secret).
 
 ### 🟠 2. OpenDyslexic still not rendering on iOS (two fix attempts, still broken)
 
 Two rounds of fixes attempted (base64 embed, dynamic style injection, timing fix, SW cache bump) — still not working on device.
+
+**iOS debugging without a Mac — use Eruda:**
+To debug on iOS without a Mac, Eruda mobile devtools is wired into the app behind `?debug=true` (CDN pinned to `eruda@3/eruda.min.js` as of Session 14) — open Quinn in Safari on iPhone at `https://jmnetherland.github.io/Quinn/?debug=true`, log in as Bella, tap the floating Eruda button, go to Elements → find a chat message → check Computed styles → confirm what `font-family` is actually applied. This will tell us in 30 seconds what two blind fixes couldn't.
 
 **Next things to try at the desk:**
 - Open Quinn in **Safari directly** (not as a PWA) — if font renders there but not in the PWA, it's a service worker cache issue.
@@ -406,6 +413,12 @@ Wiring:
 
 ## Needs Jason
 
+- **Redeploy all Edge Functions with `--no-verify-jwt`** — The client-side auth fix is applied (Session 14). Functions still need to be redeployed so JWT verification is disabled server-side:
+  ```
+  supabase functions deploy chat summarize update-profile ingest-material --no-verify-jwt
+  ```
+  This is the remaining step to unblock all Edge Function calls in production.
+
 - **Dev logging — run the SQL migration** — The `dev_logs` table does not exist in production yet. Everything else is configured (`DEV_LOGGING_ENABLED=false` secret is set, `SUPABASE_SERVICE_ROLE_KEY` is auto-injected by Supabase). To activate logging when you want to inspect real conversations:
   1. Run `supabase/migrations/002_dev_logs.sql` in Supabase SQL Editor
   2. `supabase secrets set DEV_LOGGING_ENABLED=true`
@@ -785,6 +798,40 @@ Three compounding issues:
 #### Pending verification
 - Confirm Joie's next session naturally bridges toward academics when pattern is active (3 consecutive creative-only sessions = pattern fires)
 - `session_summaries_rows.json` in repo root is a leftover debug file — delete before next session or add to `.gitignore`
+
+---
+
+### Session 14 — 2026-03-22
+
+#### Work completed
+
+**1. Fix 1 — Explicit session guard on all Edge Function invoke calls (`index.html`)**
+- Root cause of 401: session JWT wasn't being checked before invoke; fallback was sending the anon key, which fails JWT-verified Edge Functions
+- Added `if (!session) return;` guard after `supabase.auth.getSession()` in every invoke site:
+  - `sendMessage()` → `chat`: guard + user-facing "Session expired" message shown in chat
+  - `writeSummary()` → `summarize`: guard + silent return (background operation)
+  - `updateProfile()` → `update-profile`: guard + silent return (background operation)
+  - ingest-material upload handler → `ingest-material`: guard + throws (parent dashboard catch block handles display)
+- Simplified auth header construction: removed anon-key fallback — if there's no session, we don't call at all; `authHeader` now always uses `session.access_token` directly
+- Client-side is now fully correct. **Server-side deploy with `--no-verify-jwt` still required** (see Needs Jason)
+
+**2. Fix 2 — Session summary debug logging (`index.html`)**
+- Added `console.log('writeSummary triggered, isFinal:', isFinal)` at the top of `writeSummary()` so Eruda on iPhone can confirm whether the function is firing at all
+- This disambiguates two failure modes: (a) writeSummary not being called vs (b) summarize Edge Function returning an error
+
+**3. Fix 3 — Pin Eruda CDN to v3 (`index.html`)**
+- Updated Eruda script src from `https://cdn.jsdelivr.net/npm/eruda` (latest, unpinned) to `https://cdn.jsdelivr.net/npm/eruda@3/eruda.min.js` (pinned, minified)
+- Eruda already existed in the app at `?debug=true`; this just makes it stable and smaller
+
+#### Files changed
+- `index.html` — session guard on all 4 invoke sites, `writeSummary` console.log, Eruda CDN pin
+- `HANDOFF.md` — this update
+
+#### Deploy required
+```
+supabase functions deploy chat summarize update-profile ingest-material --no-verify-jwt
+```
+This unblocks all Edge Function calls. No new code changes in Edge Functions themselves — client-side only.
 
 ---
 

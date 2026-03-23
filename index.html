@@ -820,6 +820,16 @@ body.dyslexia-font div {
 <!-- Quinn lives here — moved between view stages by the router -->
 <canvas id="quinn-cv" width="420" height="420"></canvas>
 
+<!-- Eruda mobile devtools — loads only when ?debug=true is in the URL -->
+<script>
+  if (new URLSearchParams(window.location.search).get('debug') === 'true') {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/eruda@3/eruda.min.js';
+    s.onload = function() { eruda.init(); };
+    document.head.appendChild(s);
+  }
+</script>
+
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
@@ -1270,9 +1280,8 @@ async function sendMessage(view) {
     if (view === 'mg') body.is_first_meeting = true;
 
     const { data: { session } } = await supabase.auth.getSession();
-    const authHeader = session?.access_token
-      ? { Authorization: `Bearer ${session.access_token}` }
-      : { Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+    if (!session) { thinking.remove(); addQuinnMsg(view, "Session expired — please sign in again."); return; }
+    const authHeader = { Authorization: `Bearer ${session.access_token}` };
 
     const { data, error } = await supabase.functions.invoke('chat', { body, headers: authHeader });
 
@@ -1402,6 +1411,7 @@ function resetInactivityTimer() {
 }
 
 async function writeSummary(isFinal) {
+  console.log('writeSummary triggered, isFinal:', isFinal);
   if (!currentKidRecord) return;
   if (isFinal && sessionEnded) return;
 
@@ -1414,9 +1424,8 @@ async function writeSummary(isFinal) {
     // Call summarize Edge Function if there is new content to process
     if (segment.length > 0) {
       const { data: { session: sumSession } } = await supabase.auth.getSession();
-      const sumAuthHeader = sumSession?.access_token
-        ? { Authorization: `Bearer ${sumSession.access_token}` }
-        : { Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+      if (!sumSession) return;
+      const sumAuthHeader = { Authorization: `Bearer ${sumSession.access_token}` };
 
       const { data, error } = await supabase.functions.invoke('summarize', {
         body: {
@@ -1474,9 +1483,8 @@ async function updateProfile() {
 
   try {
     const { data: { session: upSession } } = await supabase.auth.getSession();
-    const upAuthHeader = upSession?.access_token
-      ? { Authorization: `Bearer ${upSession.access_token}` }
-      : { Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+    if (!upSession) return;
+    const upAuthHeader = { Authorization: `Bearer ${upSession.access_token}` };
 
     const { data, error } = await supabase.functions.invoke('update-profile', {
       body: {
@@ -1918,9 +1926,8 @@ async function uploadMaterial(kidId) {
     // 3. Call ingest-material edge function
     const profile = parentData[kidId]?.profile?.profile_json || null;
     const { data: { session: ingSession } } = await supabase.auth.getSession();
-    const ingAuthHeader = ingSession?.access_token
-      ? { Authorization: `Bearer ${ingSession.access_token}` }
-      : { Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+    if (!ingSession) throw new Error('Not signed in');
+    const ingAuthHeader = { Authorization: `Bearer ${ingSession.access_token}` };
 
     const { data: ingestData, error: ingestErr } = await supabase.functions.invoke('ingest-material', {
       body: { kid_id: kidId, subject, pdf_base64: pdfBase64, filename: file.name, learner_profile: profile },
