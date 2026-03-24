@@ -1942,7 +1942,17 @@ async function uploadMaterial(kidId) {
 
   try {
     // 1. Upload to Supabase Storage
-    const storagePath = `${kidId}/${subject}/${file.name}`;
+    // Sanitize filename: strip emojis/non-ASCII and invalid path chars so Supabase accepts the key.
+    // Original file.name is preserved for display in the DB record.
+    const safeFilename = (() => {
+      const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
+      const base = file.name.slice(0, file.name.length - ext.length)
+        .replace(/[^\x00-\x7F]/g, '')    // strip emojis, em-dashes, and all non-ASCII
+        .replace(/[/\\?%*:|"<>]/g, '')    // strip other chars invalid in storage paths
+        .replace(/\s+/g, ' ').trim();
+      return (base || 'document') + ext;
+    })();
+    const storagePath = `${kidId}/${subject}/${safeFilename}`;
     const { error: storageErr } = await supabase.storage
       .from('study-materials').upload(storagePath, file, { upsert: true });
     if (storageErr) throw storageErr;
