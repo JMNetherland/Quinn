@@ -697,6 +697,27 @@ body.dyslexia-font div {
   flex: 1; font-size: 0.8rem; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.material-item.paused { opacity: 0.5; }
+.material-controls { display:flex; gap:6px; align-items:center; flex-shrink:0; }
+.pill-btn {
+  border-radius: 12px; font-family: 'Syne', sans-serif; font-size: 0.45rem;
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 9px; border: 1px solid; cursor: pointer; transition: opacity 0.2s;
+}
+.pill-active  { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.5); color: #4ade80; }
+.pill-paused  { background: rgba(148,163,184,0.10); border-color: rgba(148,163,184,0.3); color: #94a3b8; }
+.pill-btn:hover { opacity: 0.7; }
+.material-delete-btn {
+  background: none; border: 1px solid transparent; border-radius: 4px;
+  color: var(--text-3); font-size: 0.75rem; cursor: pointer;
+  padding: 2px 5px; line-height: 1; transition: color 0.2s, border-color 0.2s;
+}
+.material-delete-btn:hover { color: hsl(0,55%,52%); border-color: hsl(0,55%,52%); }
+.paused-section-label {
+  font-family: 'Syne', sans-serif; font-size: 0.45rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3);
+  margin: 10px 0 4px;
+}
 
 .upload-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .upload-status {
@@ -968,6 +989,7 @@ async function routeUser(userId, errorEl) {
     supabase.from('study_materials').select('subject, material_summary, file_name')
       .eq('kid_id', kid.id)
       .is('archived_at', null)
+      .eq('inactive', false)
       .not('material_summary', 'is', null),
   ]);
   sessionSummaries  = summaryRes.data  || [];
@@ -1752,14 +1774,27 @@ function buildKidDetailHTML(d) {
         </div>`;
       }).join('');
 
-  // Materials list
-  const materialItemsHTML = materials.length === 0
-    ? '<div class="empty-state">No materials uploaded yet.</div>'
-    : materials.map(m => `<div class="material-item" id="material-item-${m.id}">
+  // Materials list — active shown normally, paused shown greyed in a separate section
+  const activeMats  = materials.filter(m => !m.inactive);
+  const pausedMats  = materials.filter(m =>  m.inactive);
+  const renderMatItem = (m) => {
+    const toggleBtn = m.inactive
+      ? `<button class="pill-btn pill-paused" onclick="toggleMaterialInactive('${m.id}','${kidId}',false)" title="Resume — re-enable for Quinn">Paused</button>`
+      : `<button class="pill-btn pill-active" onclick="toggleMaterialInactive('${m.id}','${kidId}',true)" title="Pause — remove from Quinn's context">Active</button>`;
+    return `<div class="material-item${m.inactive ? ' paused' : ''}" id="material-item-${m.id}">
         <span class="material-subject">${escHtml(m.subject)}</span>
         <span class="material-name">${escHtml(m.file_name)}</span>
-        <button class="btn-sm btn-sm-danger" onclick="archiveMaterial('${m.id}','${kidId}')">Remove</button>
-      </div>`).join('');
+        <div class="material-controls">${toggleBtn}<button class="material-delete-btn" onclick="deleteMaterial('${m.id}','${kidId}')" title="Delete permanently">🗑</button></div>
+      </div>`;
+  };
+  let materialItemsHTML;
+  if (materials.length === 0) {
+    materialItemsHTML = '<div class="empty-state">No materials uploaded yet.</div>';
+  } else {
+    const parts = activeMats.map(renderMatItem);
+    if (pausedMats.length > 0) parts.push('<div class="paused-section-label">Paused</div>', ...pausedMats.map(renderMatItem));
+    materialItemsHTML = parts.join('');
+  }
 
   // Notes list
   const noteItemsHTML = notes.length === 0
@@ -1956,9 +1991,24 @@ async function uploadMaterial(kidId) {
   }
 }
 
-async function archiveMaterial(materialId, kidId) {
+async function toggleMaterialInactive(materialId, kidId, setInactive) {
   const { error } = await supabase.from('study_materials')
-    .update({ archived_at: new Date().toISOString() }).eq('id', materialId);
+    .update({ inactive: setInactive }).eq('id', materialId);
+  if (error) return;
+  const mat = parentData[kidId]?.materials.find(m => m.id === materialId);
+  if (mat) mat.inactive = setInactive;
+  refreshMaterialList(kidId);
+}
+
+async function deleteMaterial(materialId, kidId) {
+  const mat = parentData[kidId]?.materials.find(m => m.id === materialId);
+  if (!mat) return;
+  if (!confirm(`Permanently delete "${mat.file_name}"? This cannot be undone.`)) return;
+  // Delete from Supabase Storage
+  const storagePath = `${mat.kid_id}/${mat.subject}/${mat.file_name}`;
+  await supabase.storage.from('study-materials').remove([storagePath]);
+  // Delete DB record
+  const { error } = await supabase.from('study_materials').delete().eq('id', materialId);
   if (error) return;
   parentData[kidId].materials = parentData[kidId].materials.filter(m => m.id !== materialId);
   refreshMaterialList(kidId);
@@ -1972,11 +2022,21 @@ function refreshMaterialList(kidId) {
     listEl.innerHTML = '<div class="empty-state">No materials uploaded yet.</div>';
     return;
   }
-  listEl.innerHTML = mats.map(m => `<div class="material-item" id="material-item-${m.id}">
+  const activeMats = mats.filter(m => !m.inactive);
+  const pausedMats = mats.filter(m =>  m.inactive);
+  const renderMat = (m) => {
+    const toggleBtn = m.inactive
+      ? `<button class="pill-btn pill-paused" onclick="toggleMaterialInactive('${m.id}','${kidId}',false)" title="Resume">Paused</button>`
+      : `<button class="pill-btn pill-active" onclick="toggleMaterialInactive('${m.id}','${kidId}',true)" title="Pause">Active</button>`;
+    return `<div class="material-item${m.inactive ? ' paused' : ''}" id="material-item-${m.id}">
     <span class="material-subject">${escHtml(m.subject)}</span>
     <span class="material-name">${escHtml(m.file_name)}</span>
-    <button class="btn-sm btn-sm-danger" onclick="archiveMaterial('${m.id}','${kidId}')">Remove</button>
-  </div>`).join('');
+    <div class="material-controls">${toggleBtn}<button class="material-delete-btn" onclick="deleteMaterial('${m.id}','${kidId}')" title="Delete permanently">🗑</button></div>
+  </div>`;
+  };
+  const parts = activeMats.map(renderMat);
+  if (pausedMats.length > 0) parts.push('<div class="paused-section-label">Paused</div>', ...pausedMats.map(renderMat));
+  listEl.innerHTML = parts.join('');
 }
 
 async function saveParentNote(kidId) {
@@ -2100,8 +2160,9 @@ window.toggleKidDetail    = toggleKidDetail;
 window.toggleAddExamForm  = toggleAddExamForm;
 window.addExam            = addExam;
 window.deleteExam         = deleteExam;
-window.uploadMaterial     = uploadMaterial;
-window.archiveMaterial    = archiveMaterial;
+window.uploadMaterial          = uploadMaterial;
+window.toggleMaterialInactive  = toggleMaterialInactive;
+window.deleteMaterial          = deleteMaterial;
 window.deleteNote         = deleteNote;
 window.editNote           = editNote;
 window.saveNoteEdit       = saveNoteEdit;

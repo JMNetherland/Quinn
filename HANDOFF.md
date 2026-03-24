@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-22 (Session 15)
+> Last updated: 2026-03-23 (Session 17)
 
 ---
 
@@ -157,6 +157,7 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Parent dashboard (dynamic data) | ✅ Complete |
 | Exam management (add/delete per kid) | ✅ Complete |
 | Study material upload + Claude ingestion | ✅ Complete |
+| Study material Active/Pause/Delete controls | ✅ Complete |
 | Parent notes (per kid, injected into Quinn context) | ✅ Complete |
 | Parent notes edit + delete | ✅ Complete |
 | Multi-parent access (Keri) | ✅ Complete |
@@ -878,6 +879,66 @@ The existing drift scoring instructions didn't explicitly identify creative co-a
 ```
 supabase functions deploy chat summarize --no-verify-jwt
 ```
+
+---
+
+### Session 16 — 2026-03-22
+
+#### Work completed
+
+**1. SQL migration — `003_material_inactive_flag.sql` (new)**
+- Adds `inactive boolean not null default false` to `study_materials`
+- Three-state model:
+  - `inactive = false` (default) → active, included in Quinn's context
+  - `inactive = true` → paused, excluded from context, shown greyed in dashboard
+  - `archived_at IS NOT NULL` → permanently deleted (existing soft-delete)
+
+**2. CSS — `index.html`**
+- `.material-item.paused` → opacity 0.5
+- `.material-controls` → flex container for the two action buttons
+- `.pill-btn`, `.pill-active`, `.pill-paused` → green "Active" / grey "Paused" pill toggle buttons
+- `.material-delete-btn` → red-on-hover trash icon button
+- `.paused-section-label` → section divider for the Paused group
+
+**3. Parent dashboard — material card controls (`index.html`)**
+- Replaced single "Remove" button with two controls per material:
+  - **Active/Paused pill toggle**: clicking flips `inactive` in DB and re-renders the list
+  - **Delete permanently (🗑)**: confirm dialog → removes from Supabase Storage + `study_materials` table
+- Active materials shown first; paused materials shown below a "Paused" label, greyed out
+- Both `buildKidDetailHTML` and `refreshMaterialList` use the same render logic
+
+**4. Functions added/replaced — `index.html`**
+- `toggleMaterialInactive(materialId, kidId, setInactive)` — replaces `archiveMaterial`; updates `inactive` field only
+- `deleteMaterial(materialId, kidId)` — confirm dialog → `storage.remove([path])` → `study_materials.delete()` → refresh
+- `refreshMaterialList(kidId)` — rewritten to render active + paused sections
+- Window exports updated: `archiveMaterial` removed; `toggleMaterialInactive` + `deleteMaterial` added
+
+**5. Kid chat context — `index.html`**
+- Added `.eq('inactive', false)` to the `study_materials` query on kid login — inactive materials are never loaded into `materialSummaries` and never reach Quinn's system prompt
+
+#### Files changed
+- `supabase/migrations/003_material_inactive_flag.sql` — **new**
+- `index.html` — CSS additions, kid chat query filter, `buildKidDetailHTML` materials section, `toggleMaterialInactive`, `deleteMaterial`, `refreshMaterialList` rewrite, window exports
+
+---
+
+### Session 17 — 2026-03-23
+
+#### Work completed
+
+**Migration applied — `003_material_inactive_flag.sql`**
+- Jason ran the migration in the Supabase SQL editor
+- `inactive boolean not null default false` column is now live on `study_materials`
+- All existing materials default to `inactive = false` (active) — no data impact
+
+**Toggle/delete controls shipped — `index.html`**
+- Session 16 code (pill toggle, delete button, paused section, `toggleMaterialInactive`, `deleteMaterial`, `refreshMaterialList`) committed and pushed to GitHub Pages
+- Feature is live in production
+
+#### Files changed
+- `supabase/migrations/003_material_inactive_flag.sql` — committed to repo
+- `index.html` — toggle/delete controls committed
+- `HANDOFF.md` — this update
 
 ---
 
