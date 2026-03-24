@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+<!-- COMPACTION RULE: When compacting, always preserve the full list of modified files, any active TODOs, and any test commands. -->
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
