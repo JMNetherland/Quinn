@@ -726,6 +726,23 @@ body.dyslexia-font div {
 }
 .upload-status.error { color: #e05c5c; }
 
+.upload-queue { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.upload-queue-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.78rem; color: var(--text);
+}
+.upload-queue-item .uq-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upload-queue-item .uq-status {
+  font-family: 'Syne', sans-serif; font-size: 0.45rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+}
+.upload-queue-item.uq-queued  .uq-status { color: var(--text-3); }
+.upload-queue-item.uq-active  .uq-status { color: var(--accent); }
+.upload-queue-item.uq-done    .uq-status { color: #4ade80; }
+.upload-queue-item.uq-error   .uq-status { color: #e05c5c; }
+
 .note-item {
   padding: 10px 12px;
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
@@ -1840,11 +1857,12 @@ function buildKidDetailHTML(d) {
       <div class="section-sub-label">Study Materials</div>
       <div id="material-list-${kidId}">${materialItemsHTML}</div>
       <div class="upload-row">
-        <input class="dash-input" type="file" id="material-file-${kidId}" accept=".pdf" style="flex:1;min-width:120px;padding:6px 11px">
+        <input class="dash-input" type="file" id="material-file-${kidId}" accept=".pdf" multiple style="flex:1;min-width:120px;padding:6px 11px">
         <input class="dash-input" placeholder="Subject" id="material-subject-${kidId}" style="flex:1;min-width:100px">
-        <button class="btn-primary-sm" onclick="uploadMaterial('${kidId}')">Upload PDF</button>
+        <button class="btn-primary-sm" onclick="uploadMaterial('${kidId}')">Upload PDFs</button>
       </div>
       <div class="upload-status" id="upload-status-${kidId}"></div>
+      <div class="upload-queue" id="upload-queue-${kidId}"></div>
     </div>
 
     <div class="detail-section">
@@ -1925,79 +1943,109 @@ function refreshExamList(kidId) {
 }
 
 async function uploadMaterial(kidId) {
-  const fileInput  = document.getElementById(`material-file-${kidId}`);
-  const subjInput  = document.getElementById(`material-subject-${kidId}`);
-  const statusEl   = document.getElementById(`upload-status-${kidId}`);
-  const file       = fileInput.files[0];
-  const subject    = subjInput.value.trim();
+  const fileInput = document.getElementById(`material-file-${kidId}`);
+  const subjInput = document.getElementById(`material-subject-${kidId}`);
+  const statusEl  = document.getElementById(`upload-status-${kidId}`);
+  const queueEl   = document.getElementById(`upload-queue-${kidId}`);
+  const files     = Array.from(fileInput.files);
+  const subject   = subjInput.value.trim();
 
-  if (!file || !subject) {
+  if (!files.length || !subject) {
     statusEl.classList.add('error');
-    statusEl.textContent = 'Select a PDF and enter a subject.';
+    statusEl.textContent = 'Select at least one PDF and enter a subject.';
     return;
   }
 
-  statusEl.textContent = 'Uploading…';
   statusEl.classList.remove('error');
+  statusEl.textContent = '';
 
-  try {
-    // 1. Upload to Supabase Storage
-    // Sanitize filename: strip emojis/non-ASCII and invalid path chars so Supabase accepts the key.
-    // Original file.name is preserved for display in the DB record.
-    const safeFilename = (() => {
-      const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
-      const base = file.name.slice(0, file.name.length - ext.length)
-        .replace(/[^\x00-\x7F]/g, '')    // strip emojis, em-dashes, and all non-ASCII
-        .replace(/[/\\?%*:|"<>]/g, '')    // strip other chars invalid in storage paths
-        .replace(/\s+/g, ' ').trim();
-      return (base || 'document') + ext;
-    })();
-    const storagePath = `${kidId}/${subject}/${safeFilename}`;
-    const { error: storageErr } = await supabase.storage
-      .from('study-materials').upload(storagePath, file, { upsert: true });
-    if (storageErr) throw storageErr;
+  // Build per-file queue UI
+  queueEl.innerHTML = files.map((f, i) =>
+    `<div class="upload-queue-item uq-queued" id="uq-${kidId}-${i}">
+      <span class="uq-name">${escHtml(f.name)}</span>
+      <span class="uq-status">Queued</span>
+    </div>`
+  ).join('');
 
-    const { data: urlData } = supabase.storage.from('study-materials').getPublicUrl(storagePath);
-    const fileUrl = urlData?.publicUrl || '';
-
-    // 2. Convert PDF to base64 (chunked to avoid call stack limits)
-    statusEl.textContent = 'Processing with Claude…';
-    const arrayBuffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const pdfBase64 = btoa(binary);
-
-    // 3. Call ingest-material edge function
-    const profile = parentData[kidId]?.profile?.profile_json || null;
-    const { data: { session: ingSession } } = await supabase.auth.getSession();
-    if (!ingSession) throw new Error('Not signed in');
-    const ingAuthHeader = { Authorization: `Bearer ${ingSession.access_token}` };
-
-    const { data: ingestData, error: ingestErr } = await supabase.functions.invoke('ingest-material', {
-      body: { kid_id: kidId, subject, pdf_base64: pdfBase64, filename: file.name, learner_profile: profile },
-      headers: ingAuthHeader,
-    });
-    if (ingestErr) throw ingestErr;
-
-    // 4. Insert study_materials record
-    const { data: matData, error: matErr } = await supabase.from('study_materials').insert({
-      kid_id: kidId, subject, source_type: 'pdf',
-      file_url: fileUrl, file_name: file.name,
-      material_summary: ingestData?.summary || null,
-    }).select().single();
-    if (matErr) throw matErr;
-
-    parentData[kidId].materials.unshift(matData);
-    refreshMaterialList(kidId);
-    fileInput.value = '';
-    subjInput.value = '';
-    statusEl.textContent = 'Uploaded successfully.';
-    setTimeout(() => { statusEl.textContent = ''; statusEl.classList.remove('error'); }, 3000);
-  } catch (err) {
-    console.error('uploadMaterial error:', err);
+  const profile = parentData[kidId]?.profile?.profile_json || null;
+  const { data: { session: ingSession } } = await supabase.auth.getSession();
+  if (!ingSession) {
     statusEl.classList.add('error');
-    statusEl.textContent = `Upload failed: ${err?.message || err?.error_description || JSON.stringify(err)}`;
+    statusEl.textContent = 'Not signed in.';
+    return;
+  }
+  const ingAuthHeader = { Authorization: `Bearer ${ingSession.access_token}` };
+
+  let successCount = 0;
+  let errorCount   = 0;
+
+  for (let i = 0; i < files.length; i++) {
+    const file  = files[i];
+    const rowEl = document.getElementById(`uq-${kidId}-${i}`);
+    const setStatus = (cls, text) => {
+      rowEl.className = `upload-queue-item ${cls}`;
+      rowEl.querySelector('.uq-status').textContent = text;
+    };
+
+    try {
+      // 1. Sanitize filename and upload to Supabase Storage
+      setStatus('uq-active', 'Uploading…');
+      const safeFilename = (() => {
+        const ext  = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
+        const base = file.name.slice(0, file.name.length - ext.length)
+          .replace(/[^\x00-\x7F]/g, '')
+          .replace(/[/\\?%*:|"<>]/g, '')
+          .replace(/\s+/g, ' ').trim();
+        return (base || 'document') + ext;
+      })();
+      const storagePath = `${kidId}/${subject}/${safeFilename}`;
+      const { error: storageErr } = await supabase.storage
+        .from('study-materials').upload(storagePath, file, { upsert: true });
+      if (storageErr) throw storageErr;
+
+      const { data: urlData } = supabase.storage.from('study-materials').getPublicUrl(storagePath);
+      const fileUrl = urlData?.publicUrl || '';
+
+      // 2. Convert PDF to base64
+      setStatus('uq-active', 'Processing…');
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+      const pdfBase64 = btoa(binary);
+
+      // 3. Call ingest-material edge function
+      const { data: ingestData, error: ingestErr } = await supabase.functions.invoke('ingest-material', {
+        body: { kid_id: kidId, subject, pdf_base64: pdfBase64, filename: file.name, learner_profile: profile },
+        headers: ingAuthHeader,
+      });
+      if (ingestErr) throw ingestErr;
+
+      // 4. Insert study_materials DB record
+      const { data: matData, error: matErr } = await supabase.from('study_materials').insert({
+        kid_id: kidId, subject, source_type: 'pdf',
+        file_url: fileUrl, file_name: file.name,
+        material_summary: ingestData?.summary || null,
+      }).select().single();
+      if (matErr) throw matErr;
+
+      parentData[kidId].materials.unshift(matData);
+      refreshMaterialList(kidId);
+      setStatus('uq-done', 'Done ✓');
+      successCount++;
+    } catch (err) {
+      console.error(`uploadMaterial error [${file.name}]:`, err);
+      setStatus('uq-error', err?.message || 'Failed');
+      errorCount++;
+    }
+  }
+
+  // Summary line + cleanup
+  fileInput.value = '';
+  subjInput.value = '';
+  statusEl.textContent = `${successCount} uploaded${errorCount ? `, ${errorCount} failed` : ''}.`;
+  if (errorCount === 0) {
+    setTimeout(() => { queueEl.innerHTML = ''; statusEl.textContent = ''; }, 3000);
   }
 }
 
