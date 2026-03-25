@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-23 (Session 17)
+> Last updated: 2026-03-24 (Session 17)
 
 ---
 
@@ -40,7 +40,7 @@ To debug on iOS without a Mac, Eruda mobile devtools is wired into the app behin
 
 ## Version
 
-**Current: `v0.3.2`**
+**Current: `v0.4.0`**
 
 | Bump | When |
 |---|---|
@@ -48,7 +48,7 @@ To debug on iOS without a Mac, Eruda mobile devtools is wired into the app behin
 | MINOR (0.**x**.0) | New feature shipped and tested |
 | MAJOR (**x**.0.0) | `1.0.0` = production-ready, all kids using it |
 
-Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.3.0`.
+Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.4.0`.
 
 ---
 
@@ -948,3 +948,9 @@ supabase functions deploy chat summarize --no-verify-jwt
 - **Sibling isolation is strict** — no cross-sibling data access under any circumstances. RLS enforces this at the database level.
 - **No full transcripts for parents** — parents see session summaries only. This is intentional to preserve kid trust.
 - **All API keys server-side only** — ANTHROPIC_API_KEY lives exclusively in Supabase Edge Function environment variables. If any API call is ever added to client JS, that is a bug. No GEMINI_API_KEY is used.
+
+---
+
+## Changelog
+
+- v0.4.0 (2026-03-24): Bulk PDF upload with per-file progress queue; sanitize storage filenames for emoji and non-ASCII characters
