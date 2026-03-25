@@ -8,9 +8,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Quinn** is an AI learning companion for kids — a named, consistent AI friend (not a tutor) that builds a genuine relationship with each child through persistent memory, age-calibrated tone, and interest-driven teaching. Built for Jason's family: Mason (10), Joie (13), Bella (15). Parents (Jason + Keri) manage all three profiles from a shared dashboard.
 
-Status: **Pre-build.** Full PRD is in `QUINN_PRD.md`.
+Status: **Live — v0.3.1, Session 16 complete.** Full PRD is in `QUINN_PRD.md`.
 
 Key principle: Rapport and trust come first. Education follows naturally. Quinn earns the right to teach.
+
+## Current State
+
+- Supabase auth, DB, and storage wired; all Edge Functions deployed and live
+- Claude chat live (Haiku 4.5 in dev) with prompt caching, drift scoring, and creative writing guardrails
+- Session summaries write incrementally + finalize on inactivity timeout
+- Parent dashboard: exam CRUD, material upload/pause/delete, session summary cards with safety flags
+- PWA enabled (manifest + service worker)
+- Eruda debug console accessible at `?debug=true`
+- Creative writing drift guardrails active (drift score 0–10; correction injected at 5+)
 
 ## Stack
 
@@ -50,7 +60,7 @@ parent_notes       — id, kid_id, note, created_at
 
 ### Claude API Patterns
 - **Prompt caching** must be enabled — system prompt + learner profile load every conversation (90% savings on cached tokens)
-- **Model routing**: Sonnet 4.6 for live Quinn conversation and document ingestion; Haiku 4.5 for session summary writes and learner profile updates
+- **Model routing**: Haiku 4.5 for all Edge Functions in dev (chat, summarize, update-profile, ingest-material); switch chat + ingest-material to Sonnet 4.6 for production
 - **temperature=0.7** for Quinn conversation (warmth + consistency); **temperature=0.2** for structured outputs (summaries, profile JSON updates)
 - All Claude API calls must be routed through **Supabase Edge Functions** — never expose API keys in client-side JS
 
