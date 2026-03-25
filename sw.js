@@ -1,6 +1,6 @@
 // Quinn Service Worker — v0.3.1
 // Bump CACHE_NAME when you want to force-wipe the offline cache
-const CACHE_NAME = 'quinn-v0.4.0';
+const CACHE_NAME = 'quinn-v0.5.0';
 
 // Static assets to precache on install (icons + manifest rarely change)
 const PRECACHE_ASSETS = [
