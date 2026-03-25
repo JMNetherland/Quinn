@@ -683,6 +683,26 @@ body.dyslexia-font div {
 }
 .btn-primary-sm:hover { opacity: 0.85; }
 
+/* ── Reset password modal ──────────────────────────────────────────── */
+.reset-pwd-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px;
+}
+.reset-pwd-overlay.hidden { display: none; }
+.reset-pwd-modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 28px 28px 24px;
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.reset-pwd-modal h3 { margin: 0; font-size: 1rem; color: var(--text); }
+.reset-pwd-modal .pwd-field { display: flex; flex-direction: column; gap: 6px; }
+.reset-pwd-modal .pwd-field label { font-size: 0.78rem; color: var(--text-2); }
+.reset-pwd-modal .pwd-error { font-size: 0.82rem; color: hsl(0,55%,52%); min-height: 1.1em; }
+.reset-pwd-modal .pwd-success { font-size: 0.82rem; color: hsl(145,50%,50%); min-height: 1.1em; }
+.reset-pwd-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
 .material-item {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 12px;
@@ -874,7 +894,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 'use strict';
 
 // ── Version ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '0.5.0';
+const APP_VERSION = '0.6.0';
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
 const SUPABASE_URL      = 'https://onevueekevfpniopuyhj.supabase.co';
@@ -1773,6 +1793,7 @@ function buildKidDetailHTML(d) {
       </div>
       <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
         <button class="btn-primary-sm" onclick="saveKidProfile('${kidId}')">Save</button>
+        <button class="btn-sm" onclick="openResetPwdModal('${kidId}','${escHtml(kid.name)}')">Reset Password</button>
         <span class="upload-status" id="kid-profile-status-${kidId}"></span>
       </div>
     </div>`;
@@ -2148,6 +2169,88 @@ function cancelNoteEdit(noteId, kidId) {
   refreshNotesList(kidId);
 }
 
+// ── Reset kid password ────────────────────────────────────────────────────────
+let _resetPwdKidId = null;
+
+function openResetPwdModal(kidId, kidName) {
+  _resetPwdKidId = kidId;
+  document.getElementById('reset-pwd-title').textContent = `Reset ${kidName}'s password`;
+  document.getElementById('reset-pwd-new').value = '';
+  document.getElementById('reset-pwd-confirm').value = '';
+  document.getElementById('reset-pwd-error').textContent = '';
+  document.getElementById('reset-pwd-error').classList.add('hidden');
+  document.getElementById('reset-pwd-success').textContent = '';
+  document.getElementById('reset-pwd-success').classList.add('hidden');
+  document.getElementById('reset-pwd-submit').disabled = false;
+  document.getElementById('reset-pwd-overlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('reset-pwd-new').focus(), 50);
+}
+
+function closeResetPwdModal(e) {
+  if (e && e.target !== document.getElementById('reset-pwd-overlay')) return;
+  document.getElementById('reset-pwd-overlay').classList.add('hidden');
+  _resetPwdKidId = null;
+}
+
+async function submitResetPassword() {
+  const newPwd     = document.getElementById('reset-pwd-new').value;
+  const confirmPwd = document.getElementById('reset-pwd-confirm').value;
+  const errEl      = document.getElementById('reset-pwd-error');
+  const successEl  = document.getElementById('reset-pwd-success');
+  const submitBtn  = document.getElementById('reset-pwd-submit');
+
+  errEl.textContent = '';
+  errEl.classList.add('hidden');
+  successEl.textContent = '';
+  successEl.classList.add('hidden');
+
+  if (!newPwd || newPwd.length < 8) {
+    errEl.textContent = 'Password must be at least 8 characters.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (newPwd !== confirmPwd) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Resetting…';
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/reset-kid-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ kid_id: _resetPwdKidId, new_password: newPwd }),
+    });
+    const result = await resp.json();
+    if (!resp.ok || result.error) {
+      errEl.textContent = result.message || 'Reset failed. Try again.';
+      errEl.classList.remove('hidden');
+    } else {
+      successEl.textContent = 'Password reset successfully.';
+      successEl.classList.remove('hidden');
+      document.getElementById('reset-pwd-new').value = '';
+      document.getElementById('reset-pwd-confirm').value = '';
+      setTimeout(() => {
+        document.getElementById('reset-pwd-overlay').classList.add('hidden');
+        _resetPwdKidId = null;
+      }, 1800);
+    }
+  } catch (err) {
+    errEl.textContent = 'Network error. Try again.';
+    errEl.classList.remove('hidden');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Reset Password';
+  }
+}
+
 async function saveKidProfile(kidId) {
   const nameEl   = document.getElementById(`kid-name-${kidId}`);
   const ageEl    = document.getElementById(`kid-age-${kidId}`);
@@ -2399,5 +2502,28 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.warn('SW registration failed:', err));
 }
 </script>
+
+<!-- Reset password modal -->
+<div class="reset-pwd-overlay hidden" id="reset-pwd-overlay" onclick="closeResetPwdModal(event)">
+  <div class="reset-pwd-modal" onclick="event.stopPropagation()">
+    <h3 id="reset-pwd-title">Reset password</h3>
+    <div class="pwd-field">
+      <label>New password</label>
+      <div style="position:relative">
+        <input class="dash-input" type="password" id="reset-pwd-new" placeholder="Min. 8 characters" style="width:100%;box-sizing:border-box">
+      </div>
+    </div>
+    <div class="pwd-field">
+      <label>Confirm password</label>
+      <input class="dash-input" type="password" id="reset-pwd-confirm" placeholder="Re-enter password" style="width:100%;box-sizing:border-box">
+    </div>
+    <div class="pwd-error hidden" id="reset-pwd-error"></div>
+    <div class="pwd-success hidden" id="reset-pwd-success"></div>
+    <div class="reset-pwd-modal-actions">
+      <button class="btn-sm" onclick="closeResetPwdModal()">Cancel</button>
+      <button class="btn-primary-sm" id="reset-pwd-submit" onclick="submitResetPassword()">Reset Password</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

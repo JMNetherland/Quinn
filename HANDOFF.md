@@ -40,7 +40,7 @@ To debug on iOS without a Mac, Eruda mobile devtools is wired into the app behin
 
 ## Version
 
-**Current: `v0.5.0`**
+**Current: `v0.6.0`**
 
 | Bump | When |
 |---|---|
@@ -48,7 +48,7 @@ To debug on iOS without a Mac, Eruda mobile devtools is wired into the app behin
 | MINOR (0.**x**.0) | New feature shipped and tested |
 | MAJOR (**x**.0.0) | `1.0.0` = production-ready, all kids using it |
 
-Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.5.0`.
+Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.6.0`.
 
 ---
 
@@ -955,3 +955,4 @@ supabase functions deploy chat summarize --no-verify-jwt
 
 - v0.4.0 (2026-03-24): Bulk PDF upload with per-file progress queue; sanitize storage filenames for emoji and non-ASCII characters
 - v0.5.0 (2026-03-24): Aggressive drift guardrails — message count limit (5 Quinn turns), sticky correction that holds when kid pushes back, fixed broken session pattern detection, fixed drift score reset threshold
+- v0.6.0 (2026-03-24): Parent can reset any kid's password from the Details panel; new reset-kid-password Edge Function with server-side ownership verification
