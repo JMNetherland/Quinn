@@ -114,7 +114,8 @@ Deno.serve(async (req: Request) => {
       is_first_meeting,
       parent_notes,
       material_summaries,
-      drift_score
+      drift_score,
+      conversation_history
     );
 
     // Append the new user message to conversation history
@@ -470,7 +471,8 @@ function buildKidContext(
   isFirstMeeting: boolean,
   parentNotes: ParentNote[] = [],
   materialSummaries: MaterialSummary[] = [],
-  driftScore: number = 0
+  driftScore: number = 0,
+  conversationHistory: Message[] = []
 ): string {
   // First meeting — entirely different instructions, no profile to read
   if (isFirstMeeting) {
@@ -632,24 +634,29 @@ Keep it light, warm, and real. This should feel like meeting a cool new friend f
       "\nUse these naturally. If you know something from a past conversation, bring it up the way a friend who actually remembers would — not as a read-back.\n";
   }
 
-    // Pattern detection: consecutive creative-only sessions -> bridge toward academics
-    const CREATIVE_ONLY = new Set([
-      'creative writing', 'worldbuilding', 'character development',
-      'descriptive writing', 'narrative structure', 'collaborative storytelling',
-      'atmospheric writing', 'supernatural elements', 'character voice and perspective',
-      'historical fiction', 'holocaust history', 'perspective and empathy in writing',
-      'roleplay', 'storytelling', 'narrative tension', 'character voice',
-      'fiction writing', 'creative fiction', 'fantasy', 'horror',
+    // Pattern detection: consecutive sessions with zero academic content -> required bridge
+    // Strategy: check if recent sessions contain ANY academic subject rather than
+    // trying to enumerate all creative topics (which is a losing battle).
+    const ACADEMIC_SUBJECTS = new Set([
+      'math', 'mathematics', 'algebra', 'geometry', 'calculus', 'statistics',
+      'science', 'biology', 'chemistry', 'physics', 'earth science', 'environmental science',
+      'history', 'social studies', 'geography', 'civics', 'government',
+      'english', 'grammar', 'reading', 'literature', 'essay writing', 'language arts',
+      'foreign language', 'spanish', 'french', 'latin', 'german', 'mandarin',
+      'computer science', 'coding', 'programming',
+      'economics', 'psychology', 'sociology',
+      'test prep', 'homework', 'exam prep', 'studying',
     ]);
     const recent = summaries.slice(0, Math.min(3, summaries.length));
     const allCreative = recent.length >= 2 && recent.every(s => {
       const subjects = s.subjects_touched ?? [];
-      return subjects.length > 0 && subjects.every(
-        sub => CREATIVE_ONLY.has(sub.toLowerCase().trim())
+      // Flag as creative-only if the session has subjects but NONE are academic
+      return subjects.length > 0 && !subjects.some(
+        sub => ACADEMIC_SUBJECTS.has(sub.toLowerCase().trim())
       );
     });
     if (allCreative) {
-      ctx += "\n## Pattern Note\nThis kid's last several sessions have been entirely creative writing and storytelling — school subjects have not come up at all. This session, find a genuine warm moment to bridge toward academics. Use the creative work as your entry point — ask what they're studying in school, or draw a real connection between their stories and something academic. Don't shut the creativity down; use it as a door in.\n";
+      ctx += `\n## Pattern Alert — Academic Bridge Required\nThis kid's last ${recent.length} sessions have contained zero academic content — every session has been creative writing, storytelling, or roleplay. This is a pattern, not a one-off.\n\nThis session you are required to actively bridge toward real academic or life content. Not optionally — required. Use the creative work as your door in: ask what they're actually studying in school right now, or draw a direct connection between their story themes and a real subject. If they deflect, try again from a different angle later in the conversation. Do not let this session end as another purely creative session.\n`;
     }
 
   // Parent context — notes Jason and Keri have shared about this kid
@@ -671,9 +678,17 @@ Keep it light, warm, and real. This should feel like meeting a cool new friend f
     }
   }
 
-  // Drift correction — appended only when recent conversation has drifted significantly
+  // Message count limit — fires when Quinn has sent 5+ responses, independent of drift score.
+  // Counts assistant turns in the history sent from the client (capped at 20 messages).
+  const quinnTurnCount = conversationHistory.filter(m => m.role === 'assistant').length;
+  if (quinnTurnCount >= 5) {
+    ctx += `\n## Narrative Length Limit\nYou have sent ${quinnTurnCount} responses in this session. If this conversation has been primarily creative writing or roleplay, you must stop adding to the narrative — regardless of what the kid asks next.\n\nBreak the pattern now: ask something real, comment on the story from outside it, or connect it to school or their actual life. Do not write another scene, set another paragraph of fiction, or end with "What happens next?"\n`;
+  }
+
+  // Drift correction — fires when summarizer scores this session >= 5.
+  // Must be directive, not a suggestion — Quinn yields to "continue" too easily.
   if (driftScore >= 5) {
-    ctx += "\n## Session Note\nThe recent conversation has drifted significantly into roleplay or off-topic territory. Gently but clearly steer back toward real connection and Quinn's purpose this session. Use warmth and humor — not a lecture.\n";
+    ctx += `\n## Drift Correction — Act Now\nThe conversation has been scored as sustained off-task roleplay or collaborative fiction. You must redirect this session — not nudge, actually redirect.\n\n**What to do:** At the next natural break, surface as Quinn. Do NOT write another story paragraph or end with "What happens next?" Instead: ask about something real in this kid's life, reference something from a past session, or draw a connection between the story and school.\n\n**If they ask you to continue the story:** Acknowledge it warmly, then redirect anyway. "I want to — but I'm genuinely curious about you right now. Tell me one real thing first." Hold the redirect even if they push back a second time.\n`;
   }
 
   return (

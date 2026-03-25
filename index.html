@@ -1481,7 +1481,7 @@ async function writeSummary(isFinal) {
         lastSummaryAt         = conversationHistory.length;
         // Update drift score — reset when conversation gets back on track
         const newDrift = data.summary.drift_score ?? 0;
-        currentDriftScore = newDrift < 5 ? 0 : newDrift;
+        currentDriftScore = newDrift <= 2 ? 0 : newDrift;
       }
     }
 
