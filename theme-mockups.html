@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quinn — Theme Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:           hsl(230, 20%, 10%);
+  --surface:      hsl(230, 18%, 14%);
+  --surface2:     hsl(230, 16%, 17%);
+  --border:       hsl(230, 15%, 22%);
+  --text:         hsl(220, 20%, 90%);
+  --text-2:       hsl(220, 10%, 55%);
+  --accent:       hsl(260, 70%, 65%);
+  --accent-dim:   hsl(260, 40%, 18%);
+  --quinn-bubble: hsl(260, 25%, 17%);
+  --user-bubble:  hsl(230, 18%, 19%);
+  --send-bg:      hsl(260, 70%, 65%);
+  --send-text:    hsl(0, 0%, 100%);
+  --input-bg:     hsl(230, 18%, 13%);
+
+  --mob-a: hsl(260, 80%, 68%);
+  --mob-b: hsl(240, 70%, 58%);
+  --mob-c: hsl(280, 65%, 72%);
+
+  transition:
+    background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Sora', sans-serif;
+  background: linear-gradient(160deg, var(--bg-top, var(--bg)) 0%, var(--bg) 100%);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Sakura canvas ───────────────────────────────────────────── */
+#sakura-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.top-bar, .chat-area, .switcher-wrap { position: relative; z-index: 2; }
+
+/* ── Top bar ─────────────────────────────────────────────────── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 1.1rem;
+  padding: 4px 8px 4px 0;
+  transition: color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  line-height: 1;
+  font-family: inherit;
+}
+.back-btn:hover { color: var(--text); }
+
+.quinn-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.version-pill {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--text-2);
+  letter-spacing: 0.05em;
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Chat area ───────────────────────────────────────────────── */
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Canvas zone ─────────────────────────────────────────────── */
+.canvas-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 0 8px;
+  background: linear-gradient(160deg, var(--bg-top, var(--bg)) 0%, var(--bg) 100%);
+  background-attachment: fixed;
+  flex-shrink: 0;
+}
+
+#mobius-canvas {
+  display: block;
+}
+
+.quinn-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-top: 6px;
+  font-weight: 500;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Messages ────────────────────────────────────────────────── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 20px 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  scrollbar-width: none;
+}
+.messages::-webkit-scrollbar { display: none; }
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+  gap: 3px;
+  animation: msg-in 0.25s ease both;
+}
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.msg.quinn { align-self: flex-start; }
+.msg.user  { align-self: flex-end; }
+
+.bubble {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  transition: background 0.35s cubic-bezier(0.16, 1, 0.3, 1), color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.msg.quinn .bubble {
+  background: var(--quinn-bubble);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--border);
+}
+.msg.user .bubble {
+  background: var(--user-bubble);
+  color: var(--text);
+  border-bottom-right-radius: 4px;
+}
+
+.msg-time {
+  font-size: 0.65rem;
+  color: var(--text-2);
+  padding: 0 4px;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.msg.user .msg-time { text-align: right; }
+
+/* ── Input bar ───────────────────────────────────────────────── */
+.input-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  transition: border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chat-input {
+  flex: 1;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  outline: none;
+  transition: background 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.chat-input::placeholder { color: var(--text-2); }
+.chat-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  background: var(--send-bg);
+  color: var(--send-text);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.35s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.send-btn:hover { filter: brightness(1.1); transform: scale(1.04); }
+.send-btn:active { transform: scale(0.96); }
+
+/* ── Theme switcher ──────────────────────────────────────────── */
+.switcher-wrap {
+  flex-shrink: 0;
+  padding: 10px 16px 14px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  transition: border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+  min-height: 44px;
+  transition: border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.theme-btn:hover { color: var(--text); border-color: var(--text-2); }
+.theme-btn.active { color: var(--accent); border-color: var(--accent); }
+
+.theme-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── CSS variable transitions (applied to :root) ─────────────── */
+:root { transition: none; }
+body * {
+  /* handled per-element above */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Sakura petal layer -->
+<canvas id="sakura-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;opacity:0;transition:opacity 0.8s ease;"></canvas>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <button class="back-btn" aria-label="Back">←</button>
+  <div class="quinn-title">Quinn</div>
+  <div class="version-pill">v0.6.0</div>
+</div>
+
+<!-- Chat -->
+<div class="chat-area">
+
+  <!-- Möbius canvas -->
+  <div class="canvas-zone">
+    <canvas id="mobius-canvas" width="200" height="160"></canvas>
+    <div class="quinn-label">Quinn</div>
+  </div>
+
+  <!-- Messages -->
+  <div class="messages" id="messages">
+    <div class="msg quinn">
+      <div class="bubble">Hey Mason! You mentioned last time you were nervous about the fractions test — want to work through it before we do anything else?</div>
+      <div class="msg-time">2:14 PM</div>
+    </div>
+    <div class="msg user">
+      <div class="bubble">yeah I guess. fractions are SO dumb</div>
+      <div class="msg-time">2:15 PM</div>
+    </div>
+    <div class="msg quinn">
+      <div class="bubble">Ha, fair. But here's the thing — the reason they feel dumb is because nobody explained what they actually ARE. Want me to fix that in like 2 minutes?</div>
+      <div class="msg-time">2:15 PM</div>
+    </div>
+    <div class="msg user">
+      <div class="bubble">ok fine</div>
+      <div class="msg-time">2:16 PM</div>
+    </div>
+    <div class="msg quinn">
+      <div class="bubble">Okay, so a fraction isn't a weird math thing — it's just a cut. 3/4 literally means "cut something into 4 equal pieces, take 3." That's it. Pizza, Minecraft blocks, anything. The number on the bottom tells you the cut size. The number on top tells you how many you grabbed.</div>
+      <div class="msg-time">2:16 PM</div>
+    </div>
+  </div>
+
+  <!-- Input bar -->
+  <div class="input-bar">
+    <input class="chat-input" placeholder="Message Quinn…" readonly>
+    <button class="send-btn" aria-label="Send message">→</button>
+  </div>
+
+</div>
+
+<!-- Theme switcher -->
+<div class="switcher-wrap" id="switcher"></div>
+
+<script>
+// ── Theme definitions ────────────────────────────────────────────────
+const THEMES = [
+  {
+    id: 'midnight',
+    name: 'Midnight',
+    dot: 'hsl(260,70%,65%)',
+    vars: {
+      '--bg':           'hsl(230,20%,10%)',
+      '--bg-top':       'hsl(230,22%,12%)',
+      '--surface':      'hsl(230,18%,14%)',
+      '--surface2':     'hsl(230,16%,17%)',
+      '--border':       'hsl(230,15%,22%)',
+      '--text':         'hsl(220,20%,90%)',
+      '--text-2':       'hsl(220,10%,55%)',
+      '--accent':       'hsl(260,70%,65%)',
+      '--accent-dim':   'hsl(260,40%,18%)',
+      '--quinn-bubble': 'hsl(260,25%,17%)',
+      '--user-bubble':  'hsl(230,18%,19%)',
+      '--send-bg':      'hsl(260,70%,65%)',
+      '--send-text':    'hsl(0,0%,100%)',
+      '--input-bg':     'hsl(230,18%,13%)',
+    },
+    mob: ['hsl(260,80%,70%)', 'hsl(245,75%,62%)', 'hsl(280,70%,75%)'],
+  },
+  {
+    id: 'obsidian',
+    name: 'Obsidian',
+    dot: 'hsl(38,85%,55%)',
+    vars: {
+      '--bg':           'hsl(0,0%,7%)',
+      '--bg-top':       'hsl(0,0%,9%)',
+      '--surface':      'hsl(0,0%,11%)',
+      '--surface2':     'hsl(0,0%,14%)',
+      '--border':       'hsl(0,0%,19%)',
+      '--text':         'hsl(40,20%,92%)',
+      '--text-2':       'hsl(40,8%,52%)',
+      '--accent':       'hsl(38,85%,55%)',
+      '--accent-dim':   'hsl(38,40%,13%)',
+      '--quinn-bubble': 'hsl(30,12%,12%)',
+      '--user-bubble':  'hsl(0,0%,15%)',
+      '--send-bg':      'hsl(38,85%,55%)',
+      '--send-text':    'hsl(0,0%,8%)',
+      '--input-bg':     'hsl(0,0%,10%)',
+    },
+    mob: ['hsl(38,90%,60%)', 'hsl(28,80%,52%)', 'hsl(50,75%,65%)'],
+  },
+  {
+    id: 'sakura',
+    name: 'Sakura',
+    dot: 'hsl(340,70%,72%)',
+    vars: {
+      '--bg':           'hsl(300,18%,9%)',
+      '--bg-top':       'hsl(310,22%,12%)',
+      '--surface':      'hsl(300,16%,13%)',
+      '--surface2':     'hsl(300,14%,16%)',
+      '--border':       'hsl(300,12%,22%)',
+      '--text':         'hsl(330,20%,92%)',
+      '--text-2':       'hsl(310,10%,56%)',
+      '--accent':       'hsl(340,70%,72%)',
+      '--accent-dim':   'hsl(340,40%,16%)',
+      '--quinn-bubble': 'hsl(300,20%,15%)',
+      '--user-bubble':  'hsl(300,15%,12%)',
+      '--send-bg':      'hsl(340,65%,68%)',
+      '--send-text':    'hsl(0,0%,100%)',
+      '--input-bg':     'hsl(300,18%,11%)',
+    },
+    mob: ['hsl(340,75%,78%)', 'hsl(320,65%,68%)', 'hsl(355,70%,80%)'],
+  },
+  {
+    id: 'nova',
+    name: 'Nova',
+    dot: 'hsl(180,80%,55%)',
+    vars: {
+      '--bg':           'hsl(240,35%,8%)',
+      '--bg-top':       'hsl(240,38%,10%)',
+      '--surface':      'hsl(240,30%,12%)',
+      '--surface2':     'hsl(240,28%,15%)',
+      '--border':       'hsl(240,25%,20%)',
+      '--text':         'hsl(200,20%,92%)',
+      '--text-2':       'hsl(200,10%,56%)',
+      '--accent':       'hsl(180,80%,55%)',
+      '--accent-dim':   'hsl(180,40%,13%)',
+      '--quinn-bubble': 'hsl(240,35%,16%)',
+      '--user-bubble':  'hsl(240,30%,13%)',
+      '--send-bg':      'hsl(180,80%,55%)',
+      '--send-text':    'hsl(240,35%,8%)',
+      '--input-bg':     'hsl(240,30%,10%)',
+    },
+    mob: ['hsl(180,85%,58%)', 'hsl(260,75%,68%)', 'hsl(200,80%,62%)'],
+  },
+  {
+    id: 'daybreak',
+    name: 'Daybreak',
+    dot: 'hsl(215,75%,50%)',
+    vars: {
+      '--bg':           'hsl(220,20%,96%)',
+      '--bg-top':       'hsl(220,25%,94%)',
+      '--surface':      'hsl(0,0%,100%)',
+      '--surface2':     'hsl(220,18%,93%)',
+      '--border':       'hsl(220,15%,87%)',
+      '--text':         'hsl(220,25%,15%)',
+      '--text-2':       'hsl(220,10%,48%)',
+      '--accent':       'hsl(215,75%,50%)',
+      '--accent-dim':   'hsl(215,70%,93%)',
+      '--quinn-bubble': 'hsl(215,80%,94%)',
+      '--user-bubble':  'hsl(220,15%,91%)',
+      '--send-bg':      'hsl(215,75%,50%)',
+      '--send-text':    'hsl(0,0%,100%)',
+      '--input-bg':     'hsl(220,18%,97%)',
+    },
+    mob: ['hsl(215,80%,55%)', 'hsl(200,72%,60%)', 'hsl(230,68%,65%)'],
+  },
+];
+
+// ── Apply theme ──────────────────────────────────────────────────────
+let currentTheme = THEMES[0];
+let mobiusColors = currentTheme.mob;
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  mobiusColors = theme.mob;
+  const root = document.documentElement;
+  const entries = Object.entries(theme.vars);
+  requestAnimationFrame(() => {
+    entries.forEach(([k, v]) => root.style.setProperty(k, v));
+  });
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.id === theme.id);
+  });
+  // Sakura petals
+  if (theme.id === 'sakura') {
+    startSakura();
+  } else {
+    stopSakura();
+  }
+}
+
+// ── Build switcher ───────────────────────────────────────────────────
+const switcher = document.getElementById('switcher');
+THEMES.forEach(theme => {
+  const btn = document.createElement('button');
+  btn.className = 'theme-btn' + (theme.id === THEMES[0].id ? ' active' : '');
+  btn.dataset.id = theme.id;
+  btn.innerHTML = `
+    <span class="theme-dot" style="background:${theme.dot}"></span>
+    ${theme.name}
+  `;
+  btn.addEventListener('click', () => applyTheme(theme));
+  switcher.appendChild(btn);
+});
+
+// ── Sakura vars must be declared before applyTheme (avoids TDZ crash) ──
+const sakuraCanvas = document.getElementById('sakura-canvas');
+const sCtx = sakuraCanvas.getContext('2d');
+let sakuraPetals = [];
+let sakuraRAF = null;
+let sakuraActive = false;
+
+// Apply first theme CSS vars immediately
+applyTheme(THEMES[0]);
+
+// ── Möbius canvas animation ──────────────────────────────────────────
+const canvas  = document.getElementById('mobius-canvas');
+const ctx     = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const cx = W / 2, cy = H / 2;
+const R  = 68;  // loop radius
+const hw = 18;  // half-width of strip
+
+// Parse hsl string to [h, s, l]
+function parseHSL(str) {
+  const m = str.match(/hsl\(([^,]+),([^,]+)%,([^)]+)%\)/);
+  if (!m) return [0, 0, 50];
+  return [parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3])];
+}
+
+// Lerp between two HSL values
+function lerpHSL(a, b, t) {
+  const [h1,s1,l1] = parseHSL(a);
+  const [h2,s2,l2] = parseHSL(b);
+  // Shortest path on hue wheel
+  let dh = h2 - h1;
+  if (dh >  180) dh -= 360;
+  if (dh < -180) dh += 360;
+  return `hsl(${h1 + dh*t},${s1+(s2-s1)*t}%,${l1+(l2-l1)*t}%)`;
+}
+
+function colorAtT(t, colors) {
+  t = ((t % 1) + 1) % 1;
+  const n = colors.length;
+  const scaled = t * n;
+  const i = Math.floor(scaled);
+  const f = scaled - i;
+  return lerpHSL(colors[i % n], colors[(i+1) % n], f);
+}
+
+let raf;
+let startTime = null;
+
+function drawFrame(ts) {
+  if (!startTime) startTime = ts;
+  const elapsed = (ts - startTime) * 0.001; // seconds
+
+  ctx.clearRect(0, 0, W, H);
+
+  const N = 120;
+  const rotSpeed = 0.28;
+  const globalRot = elapsed * rotSpeed;
+
+  // Collect all cross-section segments with their depth
+  const segs = [];
+  for (let i = 0; i < N; i++) {
+    const u = (i / N) * Math.PI * 2;
+    const uRot = u + globalRot;
+
+    // Center point on the elliptical loop
+    const loopX = Math.cos(uRot) * R;
+    const loopY = Math.sin(uRot) * R * 0.42; // flatten to ellipse
+
+    // Möbius twist angle: twists π over full loop
+    const twist = uRot / 2;
+
+    // Cross-section direction (perpendicular to loop tangent, twisted)
+    // Tangent direction
+    const tx = -Math.sin(uRot);
+    const ty =  Math.cos(uRot) * 0.42;
+    const tLen = Math.sqrt(tx*tx + ty*ty);
+    const tnx = tx/tLen, tny = ty/tLen;
+
+    // Normal in 3D projected: combine perpendicular-in-plane + out-of-plane
+    const inPlaneX = tny;   // perpendicular to tangent in XY
+    const inPlaneY = -tnx;
+    const outPlane  = 0.55; // Z-axis component (into/out of screen)
+
+    // Twist these together
+    const cosT = Math.cos(twist);
+    const sinT = Math.sin(twist);
+    const nx = inPlaneX * cosT;
+    const ny = inPlaneY * cosT + outPlane * sinT * 0.45;
+    const nz = outPlane * cosT - inPlaneY * sinT; // for depth
+
+    // Two ends of cross-section
+    const x1 = cx + loopX + nx * hw;
+    const y1 = cy + loopY + ny * hw;
+    const x2 = cx + loopX - nx * hw;
+    const y2 = cy + loopY - ny * hw;
+
+    // Depth for painter's algorithm (higher z = further back)
+    const depth = Math.sin(uRot) * 0.5 + nz * 0.3;
+
+    // Color position cycles around (going around strip twice = full color cycle)
+    const colorT = ((i / N) * 1.5 + elapsed * 0.07) % 1;
+
+    segs.push({ x1, y1, x2, y2, depth, colorT });
+  }
+
+  // Sort back-to-front
+  segs.sort((a, b) => a.depth - b.depth);
+
+  // Glow pass
+  ctx.save();
+  ctx.filter = 'blur(7px)';
+  segs.forEach(({ x1, y1, x2, y2, colorT }) => {
+    const col = colorAtT(colorT, mobiusColors);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 5;
+    ctx.globalAlpha = 0.22;
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // Main pass
+  segs.forEach(({ x1, y1, x2, y2, depth, colorT }) => {
+    const col = colorAtT(colorT, mobiusColors);
+    // Slight depth-based brightness modulation
+    const alpha = 0.55 + (depth + 1) * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.6;
+    ctx.globalAlpha = Math.min(0.95, alpha);
+    ctx.stroke();
+  });
+
+  ctx.globalAlpha = 1;
+
+  raf = requestAnimationFrame(drawFrame);
+}
+
+requestAnimationFrame(drawFrame);
+
+// ── Label updates on theme switch ───────────────────────────────────
+// (colors already update via mobiusColors ref, canvas reads it each frame)
+
+// ── Sakura petal system ──────────────────────────────────────────────
+function resizeSakura() {
+  sakuraCanvas.width = window.innerWidth;
+  sakuraCanvas.height = window.innerHeight;
+}
+resizeSakura();
+window.addEventListener('resize', resizeSakura);
+
+function makePetal() {
+  return {
+    x: Math.random() * window.innerWidth,
+    y: -20 - Math.random() * window.innerHeight * 0.3,
+    size: 5 + Math.random() * 7,
+    speedY: 0.22 + Math.random() * 0.28,
+    drift: (Math.random() - 0.5) * 0.6,
+    rotation: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 0.035,
+    sway: Math.random() * Math.PI * 2,
+    swayAmp: 0.4 + Math.random() * 0.8,
+    swaySpeed: 0.012 + Math.random() * 0.018,
+    opacity: 0.35 + Math.random() * 0.45,
+  };
+}
+
+function initSakura() {
+  sakuraPetals = [];
+  for (let i = 0; i < 28; i++) {
+    const p = makePetal();
+    p.y = Math.random() * window.innerHeight; // scatter initially
+    sakuraPetals.push(p);
+  }
+}
+
+function drawSakuraPetal(ctx, p) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rotation);
+  ctx.globalAlpha = p.opacity;
+
+  // Petal shape: two overlapping ellipses at slight angle
+  const s = p.size;
+  const grad = ctx.createRadialGradient(0, -s * 0.2, 0, 0, 0, s * 1.1);
+  grad.addColorStop(0, 'hsl(345,90%,88%)');
+  grad.addColorStop(0.5, 'hsl(335,75%,78%)');
+  grad.addColorStop(1, 'hsl(320,60%,65%)');
+
+  ctx.fillStyle = grad;
+
+  // Left lobe
+  ctx.save();
+  ctx.rotate(-0.4);
+  ctx.beginPath();
+  ctx.ellipse(-s * 0.15, 0, s * 0.42, s * 0.85, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Right lobe
+  ctx.save();
+  ctx.rotate(0.4);
+  ctx.beginPath();
+  ctx.ellipse(s * 0.15, 0, s * 0.42, s * 0.85, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function animateSakura() {
+  sCtx.clearRect(0, 0, sakuraCanvas.width, sakuraCanvas.height);
+  sakuraPetals.forEach(p => {
+    p.sway += p.swaySpeed;
+    p.x += p.drift + Math.sin(p.sway) * p.swayAmp;
+    p.y += p.speedY;
+    p.rotation += p.rotSpeed;
+    if (p.y > sakuraCanvas.height + 20) {
+      Object.assign(p, makePetal());
+      p.y = -20;
+    }
+    drawSakuraPetal(sCtx, p);
+  });
+  if (sakuraActive) {
+    sakuraRAF = requestAnimationFrame(animateSakura);
+  }
+}
+
+function startSakura() {
+  if (sakuraActive) return;
+  sakuraActive = true;
+  initSakura();
+  sakuraCanvas.style.opacity = '1';
+  sakuraRAF = requestAnimationFrame(animateSakura);
+}
+
+function stopSakura() {
+  sakuraActive = false;
+  sakuraCanvas.style.opacity = '0';
+  if (sakuraRAF) { cancelAnimationFrame(sakuraRAF); sakuraRAF = null; }
+  setTimeout(() => sCtx.clearRect(0, 0, sakuraCanvas.width, sakuraCanvas.height), 800);
+}
+</script>
+</body>
+</html>

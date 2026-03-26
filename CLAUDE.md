@@ -12,21 +12,21 @@ Status: **Live — v0.3.1, Session 16 complete.** Full PRD is in `QUINN_PRD.md`.
 
 Key principle: Rapport and trust come first. Education follows naturally. Quinn earns the right to teach.
 
-## Current State
+## Current Feature State
 
 - Supabase auth, DB, and storage wired; all Edge Functions deployed and live
-- Claude chat live (Haiku 4.5 in dev) with prompt caching, drift scoring, and creative writing guardrails
+- Claude chat live (Sonnet 4.6) with prompt caching, drift scoring, and roleplay/creative writing guardrails
 - Session summaries write incrementally + finalize on inactivity timeout
-- Parent dashboard: exam CRUD, material upload/pause/delete, session summary cards with safety flags
+- Parent dashboard: exam CRUD, material upload/toggle/delete, session summary cards with safety flags
 - PWA enabled (manifest + service worker)
 - Eruda debug console accessible at `?debug=true`
-- Creative writing drift guardrails active (drift score 0–10; correction injected at 5+)
+- Roleplay guardrails + drift detection active (drift score 0–10; correction injected at 5+)
 
 ## Stack
 
 | Piece | Tool |
 |---|---|
-| AI conversation | Claude API (Haiku 4.5 for live chat **during dev**; switch to Sonnet 4.6 for production) |
+| AI conversation | Claude API (Sonnet 4.6 for Quinn chat; Haiku 4.5 for dev/subagent tasks) |
 | Document ingestion | Claude Sonnet 4.6 (200K context — no Gemini; one API, one key, one SDK) |
 | Database + auth + storage | Supabase (Postgres, Auth, Storage) |
 | Front end | Single HTML file — GitHub Pages |
@@ -60,7 +60,7 @@ parent_notes       — id, kid_id, note, created_at
 
 ### Claude API Patterns
 - **Prompt caching** must be enabled — system prompt + learner profile load every conversation (90% savings on cached tokens)
-- **Model routing**: Haiku 4.5 for all Edge Functions in dev (chat, summarize, update-profile, ingest-material); switch chat + ingest-material to Sonnet 4.6 for production
+- **Model routing**: Sonnet 4.6 for Quinn chat and ingest-material; Haiku 4.5 for dev/subagent tasks (summarize, update-profile)
 - **temperature=0.7** for Quinn conversation (warmth + consistency); **temperature=0.2** for structured outputs (summaries, profile JSON updates)
 - All Claude API calls must be routed through **Supabase Edge Functions** — never expose API keys in client-side JS
 
