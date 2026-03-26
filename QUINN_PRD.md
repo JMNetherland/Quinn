@@ -1,10 +1,10 @@
 # Quinn — AI Learning Companion
 ## Product Requirements Document
 
-**Version:** 1.2  
-**Date:** March 2026  
-**Status:** Brainstorm Complete — Pre-Build  
-**Owner:** Jason  
+**Version:** 1.3
+**Date:** March 2026
+**Status:** Live — v0.6.0
+**Owner:** Jason
 
 ---
 
@@ -334,7 +334,37 @@ Quinn watches YouTube videos with the kid — pausing at key moments to ask ques
 
 > **Architecture note for v1:** Add `source_type` field to `study_materials` table now (`pdf`, `youtube`, `gdoc`, `text`). This future-proofs the data model so the co-watching feature can be added in v2 without a schema change.
 
-### 7.4 Other v2 Features
+### 7.4 Frontend Architecture Migration ⭐ Priority v2 Structural Change
+
+Quinn is deliberately a single HTML file for v1 — no build step, maximum portability, consistent with the Family Stack app pattern. The natural migration moment is v2, when ElevenLabs TTS, Lottie animations, and the illustrated character push the complexity past what a single file can cleanly manage.
+
+**Target stack for v2:**
+
+| Piece | v1 | v2 |
+|---|---|---|
+| App structure | Single HTML file | Vite + React + TypeScript |
+| State management | Ad-hoc flags | Zustand (same as Ember) |
+| Testing | Playwright smoke tests only | Vitest + React Testing Library |
+| Styling | Inline CSS variables | Tailwind v4 @theme tokens |
+| Backend | No change | No change — Supabase + Edge Functions stay as-is |
+| Deployment | GitHub Pages | GitHub Pages (Vite output to `/dist`) |
+
+**What this migration enables:**
+- Learner profile update logic becomes a unit-testable TypeScript pure function — no more trusting Claude to merge JSONB correctly without verification
+- Explicit typed state machine for conversation flow (loading → unauthenticated → meet-and-greet → active-conversation)
+- Vitest catches learner profile corruption and summary write failures before they reach production
+- The same subagent-driven development workflow already proven on Ember applies directly
+
+**Reference implementation:** Ember (`C:\Dev\personal\web-apps\Ember`) uses this exact stack. All patterns — Zustand session store, Tailwind design tokens, Vitest test setup, Supabase RLS — are directly transferable.
+
+**Migration sequence (don't start until v2 features begin):**
+1. Scaffold Vite + React + TypeScript alongside `index.html`
+2. Extract learner profile logic as typed pure functions first
+3. Port screens: child login → chat → meet and greet → parent dashboard
+4. Add tests as each screen is ported — don't port without tests
+5. Cut GitHub Pages to the Vite build output
+
+### 7.5 Other v2 Features
 
 | Feature | Detail |
 |---|---|

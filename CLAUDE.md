@@ -115,3 +115,48 @@ Tone is driven by the learner profile and age — not hardcoded persona switchin
 - Audio output: structure Claude response pipeline so text can be passed to ElevenLabs TTS without restructuring
 - YouTube co-watching: `source_type` on `study_materials` already accounts for this
 - pgvector: plain Postgres for v1, vector embeddings upgrade in v2 for semantic session retrieval
+
+## v2 Framework Migration Plan
+
+Quinn is intentionally a single HTML file for v1. The natural migration moment is **v2**, when ElevenLabs TTS, Lottie animations, and the illustrated Ember-like character push the complexity past what a single file can cleanly manage.
+
+**When v2 begins, migrate to:**
+- **Vite + React + TypeScript** — same stack as Ember (the sibling project); proven workflow
+- **Zustand** — session state, active kid, conversation state machine (see gap below)
+- **Vitest + React Testing Library** — unit tests for learner profile update logic (pure function), smoke tests for conversation flow
+- **Tailwind v4 @theme tokens** — replace inline CSS variables with the same token pattern used in Ember
+
+**What does NOT change in v2:**
+- Supabase backend, schema, and RLS — stays exactly as-is
+- Edge Functions — stays as-is (all API calls stay server-side)
+- GitHub Pages deployment — Vite builds to `/dist`, same Pages workflow
+
+**Migration sequence when the time comes:**
+1. Scaffold `vite + react-ts` project alongside `index.html` (don't delete yet)
+2. Extract state machine and learner profile logic as TypeScript modules first (makes porting easier)
+3. Port screens one by one: child login → chat → meet and greet → parent dashboard
+4. Add tests as each screen is ported
+5. Cut over GitHub Pages to point at the built output
+
+**Reference:** Ember (sibling project at `C:\Dev\personal\web-apps\Ember`) is the exact target stack. Patterns, token names, and subagent workflow are directly transferable.
+
+---
+
+## Known Code Quality Gaps (Fix in v1, Before v2)
+
+These three gaps were identified by comparing Quinn's patterns against Ember (the sibling project, built after Quinn). They are not blocking but represent real risk — especially for a kids app where silent failures corrupt learner profiles or lose session summaries.
+
+### Gap 1 — Async Error Handling (HIGH)
+Quinn's Claude API calls, session summary writes, and learner profile updates are likely bare async without try/catch. A network failure or Edge Function error silently fails — the summary doesn't write, the learner profile doesn't update, and the kid's conversation history is partially lost.
+
+**Fix:** Wrap every async Supabase and Edge Function call in try/catch. Show a visible error state rather than hanging or silently dropping data. The incremental summary write is the most critical path — failure there means a conversation is lost entirely.
+
+### Gap 2 — Implicit State Management (MEDIUM)
+Quinn's conversation flow has clear states (loading → unauthenticated → meet-and-greet → active-conversation) but these are almost certainly managed as ad-hoc flags scattered through the code rather than an explicit state machine. This makes transitions hard to reason about and edge cases easy to miss.
+
+**Fix:** Consolidate into an explicit `appState` variable with typed values — same pattern as `KidDashboard.tsx` in Ember. This is a vanilla JS refactor; no new library needed.
+
+### Gap 3 — Learner Profile Update Logic (MEDIUM)
+The three-tier learner profile update (stable / current-state / observed-patterns) is applied entirely through a Claude prompt, with no way to verify the merge is correct. If the prompt drifts or Claude makes a wrong judgment, profile corruption is silent and accumulates across sessions.
+
+**Fix:** Extract the merge rules as a documented pure function that validates the structure before writing. In v1 this can be a JS validation function. In v2 (TypeScript) it becomes fully unit-testable. At minimum, add a schema check before any `UPDATE learner_profiles` write.

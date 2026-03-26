@@ -48,3 +48,25 @@ Full report: run `ai-slop-detector` skill in Claude Code
   - `claude-haiku-4-5-20251001` is hardcoded in `chat/index.ts`, `summarize/index.ts`, and `update-profile/index.ts`.
   - Add `const MODEL = "claude-haiku-4-5-20251001";` at the top of each file so a model upgrade is one touch per function, not a grep-and-replace.
   - When switching chat back to Sonnet 4.6, update `chat/index.ts` separately from the others.
+
+---
+
+## Practice Gaps — From Ember Comparison (2026-03-26)
+
+Identified by comparing Quinn's architecture against Ember (sibling project built after Quinn). Not bugs — structural weaknesses. Fix in v1 before v2 migration begins.
+
+- [ ] **G1 — Async error handling audit (HIGH)**
+  - Quinn's Claude API calls, session summary writes, and learner profile updates are almost certainly bare async without try/catch.
+  - A network failure or Edge Function cold-start error silently drops the request — the summary doesn't write, the profile doesn't update, the conversation is lost.
+  - **Fix:** Audit every `supabase.functions.invoke()` and `supabase.from().upsert()` call. Wrap in try/catch. Show a visible error state or retry prompt rather than hanging silently.
+  - The incremental summary write path is the highest priority — failure there loses the entire conversation's memory.
+
+- [ ] **G2 — Formalize conversation state machine (MEDIUM)**
+  - Quinn's flow has clear states (loading → unauthenticated → meet-and-greet → active-conversation) but these are managed as scattered flags rather than an explicit state variable.
+  - Edge cases (session timeout while in meet-and-greet, auth expiry mid-conversation) are hard to reason about and easy to get wrong.
+  - **Fix:** Introduce a single `appState` variable with typed string values — same pattern as `KidDashboard.tsx` in Ember. Vanilla JS refactor, no new library needed.
+
+- [ ] **G3 — Learner profile update as validated function (MEDIUM)**
+  - The three-tier profile merge (stable / current-state / observed-patterns) is applied entirely via a Claude prompt. If the prompt drifts or Claude makes a wrong structural choice, profile corruption accumulates silently across sessions.
+  - **Fix:** Add a schema validation function that runs before any `UPDATE learner_profiles` write. Checks that required keys exist and tier boundaries are respected. Logs a warning and skips the write if the JSON is malformed rather than writing bad data.
+  - In v2 (TypeScript), this becomes a fully unit-testable pure function with Vitest coverage.
