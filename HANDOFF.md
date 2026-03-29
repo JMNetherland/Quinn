@@ -19,6 +19,8 @@ Quinn is v1 feature-complete but NOT cleared for paid subscribers until these ar
 | Write 1-page Information Security Program (internal doc) | April 22, 2026 | ❌ Not started |
 | Add AI disclosure to Quinn UI ("powered by Claude AI / Anthropic") | Before first paying customer | ❌ Not started |
 
+**Standard:** All compliance work targets the full post-April-22-2026 COPPA spec from day one — do not build to the older standard with a plan to patch later.
+
 **Full compliance checklist:** `C:/Dev/obsidian-vault/Projects/The Family Stack/compliance-checklist.md`
 
 ---
