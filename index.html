@@ -956,6 +956,16 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // ── Version ───────────────────────────────────────────────────────────────────
 const APP_VERSION = '0.6.0';
 
+// ── SVG icons (replaces emoji in dynamic UI) ──────────────────────────────
+const ICONS = {
+  volumeOn:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`,
+  volumeOff: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`,
+  trash:     `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
+};
+
+// ── Reduced motion preference ─────────────────────────────────────────────
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 // ── Supabase ──────────────────────────────────────────────────────────────────
 const SUPABASE_URL      = 'https://onevueekevfpniopuyhj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uZXZ1ZWVrZXZmcG5pb3B1eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NzE2OTQsImV4cCI6MjA4ODU0NzY5NH0.2anUmtXLnLa2biBK8vJ-9XjHYETYFAo-MJ_3Ph6tLk4';
@@ -995,6 +1005,15 @@ let sessionEnded           = false;          // prevents double finalization
 let currentDriftScore      = 0;             // 0-10 drift score from last summary; passed to next chat call
 let devSessionId           = null;          // uuid per chat session; sent to Edge Function for dev_logs
 const SESSION_INACTIVITY_MS = 5 * 60 * 1000; // 5 minutes
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function setSending(state) {
+  isSending = state;
+  document.querySelectorAll('.send-btn').forEach(btn => {
+    btn.disabled = state;
+    btn.style.opacity = state ? '0.4' : '';
+  });
+}
 
 // ── Router ────────────────────────────────────────────────────────────────────
 let currentView = 'signin';
@@ -1198,7 +1217,8 @@ function toggleMute() {
   voiceMuted = !voiceMuted;
   if (voiceMuted) window.speechSynthesis.cancel();
   document.querySelectorAll('.mute-btn').forEach(btn => {
-    btn.textContent = voiceMuted ? '🔇' : '🔊';
+    btn.innerHTML = voiceMuted ? ICONS.volumeOff : ICONS.volumeOn;
+    btn.setAttribute('aria-label', voiceMuted ? 'Unmute Quinn' : 'Mute Quinn');
   });
 }
 
@@ -1293,7 +1313,7 @@ async function signOut() {
   mgConversationHistory = [];
   mgExchangeCount       = 0;
   mgProfileSaved        = false;
-  isSending             = false;
+  setSending(false);
   currentSessionSummary = null;
   sessionStartedAt      = null;
   lastSummaryAt         = 0;
@@ -1335,6 +1355,19 @@ function addQuinnMsg(view, text) {
   container.appendChild(d);
   container.scrollTop = container.scrollHeight;
   setQuinnState('listening');
+  return d;
+}
+
+async function typewriterAppend(msgEl, text, delayMs = 14) {
+  if (prefersReducedMotion) { msgEl.querySelector('.msg-text').textContent = text; return; }
+  const span = msgEl.querySelector('.msg-text');
+  const container = msgEl.parentElement;
+  span.textContent = '';
+  for (const char of text) {
+    span.textContent += char;
+    container.scrollTop = container.scrollHeight;
+    await new Promise(r => setTimeout(r, delayMs));
+  }
 }
 
 function addKidMsg(view, text) {
@@ -1356,6 +1389,8 @@ function addThinking(view) {
   container.appendChild(d);
   container.scrollTop = container.scrollHeight;
   setQuinnState('curious');
+  const sr = document.getElementById('quinn-sr-status');
+  if (sr) sr.textContent = 'Quinn is thinking…';
   return d;
 }
 
@@ -1375,7 +1410,7 @@ async function sendMessage(view) {
   const text    = input.value.trim();
   if (!text) return;
 
-  isSending = true;
+  setSending(true);
   input.value = '';
   input.style.height = 'auto';
   addKidMsg(view, text);
@@ -1405,12 +1440,15 @@ async function sendMessage(view) {
     const { data, error } = await supabase.functions.invoke('chat', { body, headers: authHeader });
 
     thinking.remove();
+    const sr = document.getElementById('quinn-sr-status');
+    if (sr) sr.textContent = '';
 
     if (error || !data?.response) {
       addQuinnMsg(view, "Quinn seems distracted right now — try again in a second");
     } else {
       const response = data.response;
-      addQuinnMsg(view, response);
+      const msgEl = addQuinnMsg(view, '');
+      await typewriterAppend(msgEl, response);
       speakQuinn(response);
 
       // Update in-memory history
@@ -1453,9 +1491,11 @@ async function sendMessage(view) {
   } catch (err) {
     console.error('sendMessage error:', err);
     thinking.remove();
+    const sr2 = document.getElementById('quinn-sr-status');
+    if (sr2) sr2.textContent = '';
     addQuinnMsg(view, "Quinn seems distracted right now — try again in a second");
   } finally {
-    isSending = false;
+    setSending(false);
   }
 }
 
@@ -1882,7 +1922,7 @@ function buildKidDetailHTML(d) {
     return `<div class="material-item${m.inactive ? ' paused' : ''}" id="material-item-${m.id}">
         <span class="material-subject">${escHtml(m.subject)}</span>
         <span class="material-name">${escHtml(m.file_name)}</span>
-        <div class="material-controls">${toggleBtn}<button class="material-delete-btn" onclick="deleteMaterial('${m.id}','${kidId}')" title="Delete permanently">🗑</button></div>
+        <div class="material-controls">${toggleBtn}<button class="material-delete-btn" onclick="deleteMaterial('${m.id}','${kidId}')" title="Delete permanently" aria-label="Delete material permanently">${ICONS.trash}</button></div>
       </div>`;
   };
   let materialItemsHTML;
@@ -2170,7 +2210,7 @@ function refreshMaterialList(kidId) {
     return `<div class="material-item${m.inactive ? ' paused' : ''}" id="material-item-${m.id}">
     <span class="material-subject">${escHtml(m.subject)}</span>
     <span class="material-name">${escHtml(m.file_name)}</span>
-    <div class="material-controls">${toggleBtn}<button class="material-delete-btn" onclick="deleteMaterial('${m.id}','${kidId}')" title="Delete permanently">🗑</button></div>
+    <div class="material-controls">${toggleBtn}<button class="material-delete-btn" onclick="deleteMaterial('${m.id}','${kidId}')" title="Delete permanently" aria-label="Delete material permanently">${ICONS.trash}</button></div>
   </div>`;
   };
   const parts = activeMats.map(renderMat);
@@ -2552,7 +2592,7 @@ function loop(stamp) {
   const dt = Math.min((stamp-tPrev)/1000, 0.05);
   tPrev=stamp; elapsed+=dt;
   drawMobius(elapsed, dt);
-  requestAnimationFrame(loop);
+  if (!prefersReducedMotion) requestAnimationFrame(loop);
 }
 requestAnimationFrame(ts=>{ tPrev=ts; requestAnimationFrame(loop); });
 
