@@ -1652,6 +1652,12 @@ async function writeSummary(isFinal) {
   }
 }
 
+function isValidLearnerProfile(profile) {
+  if (!profile || typeof profile !== 'object') return false;
+  const required = ['stable', 'current_state', 'observed_patterns', 'academic', 'interests'];
+  return required.every(key => key in profile);
+}
+
 async function updateProfile() {
   if (!currentKidRecord || !currentSessionSummary) return;
 
@@ -1670,6 +1676,11 @@ async function updateProfile() {
     });
 
     if (error || !data?.profile) return;
+
+    if (!isValidLearnerProfile(data.profile)) {
+      console.error('[Quinn] updateProfile: invalid profile shape from API, skipping write', data.profile);
+      return;
+    }
 
     // Upsert updated profile to Supabase
     await supabase.from('learner_profiles').upsert({
