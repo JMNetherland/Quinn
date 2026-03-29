@@ -28,7 +28,12 @@
 
 /* ── Reset ──────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-button { cursor: pointer; font: inherit; }
+button { cursor: pointer; font: inherit; touch-action: manipulation; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 textarea { font: inherit; }
 
 /* ── Tokens ─────────────────────────────────────────────────────────────────── */
@@ -39,8 +44,8 @@ textarea { font: inherit; }
   --border:     #18182e;
   --border-2:   #222240;
   --text:       #dcdcec;
-  --text-2:     #7070a0;
-  --text-3:     #32324e;
+  --text-2:     #8888b8;   /* was #7070a0 — contrast 4.31:1 → 5.8:1 on --bg */
+  --text-3:     #5a5a80;   /* was #32324e — contrast 1.63:1 → 3.4:1; decorative use only */
   /* accent is set dynamically from JS — Quinn's live hue */
   --accent:         hsl(200, 52%, 52%);
   --accent-dim:     hsl(200, 30%, 16%);
@@ -185,11 +190,11 @@ body.dyslexia-font div {
   font-size: 0.75rem;
   font-family: 'Syne', sans-serif;
   letter-spacing: 0.08em;
-  padding: 2px 4px;
+  padding: 0 10px; min-height: 44px;
   transition: color 0.2s;
-  line-height: 1;
 }
 .pwd-toggle:hover { color: var(--text-2); }
+.pwd-toggle:active { color: var(--accent); }
 .field input[type="password"] { padding-right: 52px; }
 
 .signin-error {
@@ -265,9 +270,10 @@ body.dyslexia-font div {
   background: none; border: none;
   color: var(--text-3);
   font-size: 1.1rem;
-  padding: 2px 4px;
+  padding: 0;
+  min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
   transition: color 0.2s;
-  line-height: 1;
 }
 .back-btn:hover { color: var(--text-2); }
 
@@ -299,7 +305,9 @@ body.dyslexia-font div {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 32vh;
+  flex: 1;
+  min-height: 0;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--border-2) transparent;
 }
@@ -313,13 +321,13 @@ body.dyslexia-font div {
   transition: border-color 0.8s ease;
 }
 .msg-quinn .msg-text {
-  font-size: 0.93rem;
+  font-size: 1rem;
   color: var(--text);
   line-height: 1.68;
 }
 .msg-quinn .msg-time {
   font-family: 'Syne', sans-serif;
-  font-size: 0.52rem;
+  font-size: 0.65rem;
   letter-spacing: 0.12em;
   color: var(--text-3);
   margin-top: 5px;
@@ -333,14 +341,14 @@ body.dyslexia-font div {
   margin-bottom: 8px;
 }
 .msg-kid .msg-text {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--text-2);
   text-align: right;
   line-height: 1.62;
 }
 .msg-kid .msg-time {
   font-family: 'Syne', sans-serif;
-  font-size: 0.52rem;
+  font-size: 0.65rem;
   letter-spacing: 0.12em;
   color: var(--text-3);
   margin-top: 5px;
@@ -374,7 +382,7 @@ body.dyslexia-font div {
 
 .input-bar {
   display: flex; align-items: flex-end; gap: 10px;
-  padding: 14px 18px 20px;
+  padding: 14px 18px max(20px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -399,7 +407,7 @@ body.dyslexia-font div {
 .chat-input:focus { border-color: var(--accent); }
 
 .send-btn {
-  width: 38px; height: 38px;
+  width: 44px; height: 44px;
   border-radius: 50%;
   border: 1px solid var(--border-2);
   background: transparent;
@@ -417,7 +425,7 @@ body.dyslexia-font div {
 }
 
 .mic-btn {
-  width: 38px; height: 38px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   border: 1px solid var(--border-2); background: transparent;
   color: var(--text-3); display: flex; align-items: center;
   justify-content: center; flex-shrink: 0; font-size: 1rem;
@@ -432,7 +440,10 @@ body.dyslexia-font div {
 
 .mute-btn {
   background: transparent; border: none; color: var(--text-3);
-  font-size: 1rem; padding: 4px 6px; cursor: pointer; transition: color 0.2s;
+  font-size: 1rem; padding: 0 10px;
+  min-height: 44px; min-width: 44px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: color 0.2s;
 }
 .mute-btn:hover { color: var(--text); }
 
@@ -464,7 +475,7 @@ body.dyslexia-font div {
 
 .section-label {
   font-family: 'Syne', sans-serif;
-  font-size: 0.55rem;
+  font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
@@ -642,7 +653,7 @@ body.dyslexia-font div {
   background: none; border: 1px solid var(--border-2); border-radius: 4px;
   color: var(--text-3); font-family: 'Syne', sans-serif;
   font-size: 0.48rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
-  padding: 3px 7px; transition: border-color 0.2s, color 0.2s; cursor: pointer; flex-shrink: 0;
+  padding: 6px 10px; min-height: 32px; transition: border-color 0.2s, color 0.2s; cursor: pointer; flex-shrink: 0;
 }
 .btn-sm-danger:hover { border-color: hsl(0,55%,52%); color: hsl(0,55%,52%); }
 
@@ -722,7 +733,7 @@ body.dyslexia-font div {
 .pill-btn {
   border-radius: 12px; font-family: 'Syne', sans-serif; font-size: 0.45rem;
   font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  padding: 3px 9px; border: 1px solid; cursor: pointer; transition: opacity 0.2s;
+  padding: 6px 12px; min-height: 32px; border: 1px solid; cursor: pointer; transition: opacity 0.2s;
 }
 .pill-active  { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.5); color: #4ade80; }
 .pill-paused  { background: rgba(148,163,184,0.10); border-color: rgba(148,163,184,0.3); color: #94a3b8; }
@@ -730,7 +741,9 @@ body.dyslexia-font div {
 .material-delete-btn {
   background: none; border: 1px solid transparent; border-radius: 4px;
   color: var(--text-3); font-size: 0.75rem; cursor: pointer;
-  padding: 2px 5px; line-height: 1; transition: color 0.2s, border-color 0.2s;
+  padding: 0 8px; min-height: 44px; min-width: 32px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.2s, border-color 0.2s;
 }
 .material-delete-btn:hover { color: hsl(0,55%,52%); border-color: hsl(0,55%,52%); }
 .paused-section-label {
@@ -786,6 +799,31 @@ body.dyslexia-font div {
 .note-input:focus { border-color: var(--accent); }
 .note-input::placeholder { color: var(--text-3); }
 .empty-state { color: var(--text-3); font-size: 0.78rem; font-style: italic; }
+
+/* ── Desktop breakpoint ─────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .parent-body { padding: 48px 48px 64px; }
+  .kid-cards { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .signin-form { max-width: 380px; }
+  .msg-quinn { max-width: 60%; }
+  .msg-kid   { max-width: 52%; }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .thinking-dots span { animation: none; opacity: 0.6; }
+}
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
 
 </style>
 <!-- Dyslexia font override — populated at runtime by applyDyslexiaFont() to force iOS re-render -->
