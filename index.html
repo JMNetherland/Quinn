@@ -1043,90 +1043,96 @@ function showView(name) {
 
 // Core routing logic — shared by handleSignIn and the session-restore check.
 async function routeUser(userId, errorEl) {
-  const { data: profile, error: profileErr } = await supabase
-    .from('profiles').select('*').eq('id', userId).single();
+  try {
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles').select('*').eq('id', userId).single();
 
-  if (profileErr || !profile) {
-    if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
+    if (profileErr || !profile) {
+      if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
+      await supabase.auth.signOut();
+      return;
+    }
+
+    if (profile.is_parent) { showView('parent'); loadParentDashboard(); return; }
+
+    if (!profile.kid_id) {
+      if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
+      await supabase.auth.signOut();
+      return;
+    }
+
+    const { data: kid } = await supabase
+      .from('kids').select('*').eq('id', profile.kid_id).single();
+
+    if (!kid) {
+      if (errorEl) errorEl.textContent = 'Could not load your profile. Try again.';
+      await supabase.auth.signOut();
+      return;
+    }
+
+    currentKidRecord = kid;
+    document.getElementById('chat-kid-label').textContent = kid.name;
+
+    // Check for existing learner profile — determines first-run vs returning kid
+    const { data: lp } = await supabase
+      .from('learner_profiles').select('*').eq('kid_id', kid.id).single();
+
+    if (!lp) {
+      // First visit — route to meet & greet
+      document.getElementById('mg-messages').innerHTML = '';
+      addQuinnMsg('mg', "Hey — I'm Quinn. I've been looking forward to meeting you.");
+      showView('meetgreet');
+      return;
+    }
+
+    // Returning kid — load full context before routing to chat
+    learnerProfile = lp;
+
+    const today = new Date().toISOString().split('T')[0];
+    const [summaryRes, examRes, notesRes, materialsRes] = await Promise.all([
+      supabase.from('session_summaries').select('*')
+        .eq('kid_id', kid.id)
+        .order('started_at', { ascending: false })
+        .limit(5),
+      supabase.from('exams').select('*')
+        .eq('kid_id', kid.id)
+        .gte('exam_date', today)
+        .is('archived_at', null)
+        .order('exam_date', { ascending: true }),
+      supabase.from('parent_notes').select('note, created_at')
+        .eq('kid_id', kid.id)
+        .order('created_at', { ascending: false })
+        .limit(5),
+      supabase.from('study_materials').select('subject, material_summary, file_name')
+        .eq('kid_id', kid.id)
+        .is('archived_at', null)
+        .eq('inactive', false)
+        .not('material_summary', 'is', null),
+    ]);
+    sessionSummaries  = summaryRes.data  || [];
+    upcomingExams     = examRes.data     || [];
+    parentNotes       = notesRes.data    || [];
+    materialSummaries = (materialsRes.data || [])
+      .map(m => ({ subject: m.subject, summary: m.material_summary, filename: m.file_name }));
+
+    sessionStartedAt      = new Date().toISOString();
+    currentSessionSummary = null;
+    lastSummaryAt         = 0;
+    sessionEnded          = false;
+    currentDriftScore     = 0;
+    devSessionId          = crypto.randomUUID();
+
+    document.getElementById('chat-messages').innerHTML = '';
+    const greeting = buildGreeting(kid, lp, sessionSummaries, upcomingExams);
+    showView('chat');
+    await applyDyslexiaFont(lp?.profile_json);  // before addQuinnMsg so font is active when text first renders
+    addQuinnMsg('chat', greeting);
+    speakQuinn(greeting);
+  } catch (err) {
+    console.error('[Quinn] routeUser error:', err);
+    if (errorEl) errorEl.textContent = 'Something went wrong — please try again.';
     await supabase.auth.signOut();
-    return;
   }
-
-  if (profile.is_parent) { showView('parent'); loadParentDashboard(); return; }
-
-  if (!profile.kid_id) {
-    if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
-    await supabase.auth.signOut();
-    return;
-  }
-
-  const { data: kid } = await supabase
-    .from('kids').select('*').eq('id', profile.kid_id).single();
-
-  if (!kid) {
-    if (errorEl) errorEl.textContent = 'Could not load your profile. Try again.';
-    await supabase.auth.signOut();
-    return;
-  }
-
-  currentKidRecord = kid;
-  document.getElementById('chat-kid-label').textContent = kid.name;
-
-  // Check for existing learner profile — determines first-run vs returning kid
-  const { data: lp } = await supabase
-    .from('learner_profiles').select('*').eq('kid_id', kid.id).single();
-
-  if (!lp) {
-    // First visit — route to meet & greet
-    document.getElementById('mg-messages').innerHTML = '';
-    addQuinnMsg('mg', "Hey — I'm Quinn. I've been looking forward to meeting you.");
-    showView('meetgreet');
-    return;
-  }
-
-  // Returning kid — load full context before routing to chat
-  learnerProfile = lp;
-
-  const today = new Date().toISOString().split('T')[0];
-  const [summaryRes, examRes, notesRes, materialsRes] = await Promise.all([
-    supabase.from('session_summaries').select('*')
-      .eq('kid_id', kid.id)
-      .order('started_at', { ascending: false })
-      .limit(5),
-    supabase.from('exams').select('*')
-      .eq('kid_id', kid.id)
-      .gte('exam_date', today)
-      .is('archived_at', null)
-      .order('exam_date', { ascending: true }),
-    supabase.from('parent_notes').select('note, created_at')
-      .eq('kid_id', kid.id)
-      .order('created_at', { ascending: false })
-      .limit(5),
-    supabase.from('study_materials').select('subject, material_summary, file_name')
-      .eq('kid_id', kid.id)
-      .is('archived_at', null)
-      .eq('inactive', false)
-      .not('material_summary', 'is', null),
-  ]);
-  sessionSummaries  = summaryRes.data  || [];
-  upcomingExams     = examRes.data     || [];
-  parentNotes       = notesRes.data    || [];
-  materialSummaries = (materialsRes.data || [])
-    .map(m => ({ subject: m.subject, summary: m.material_summary, filename: m.file_name }));
-
-  sessionStartedAt      = new Date().toISOString();
-  currentSessionSummary = null;
-  lastSummaryAt         = 0;
-  sessionEnded          = false;
-  currentDriftScore     = 0;
-  devSessionId          = crypto.randomUUID();
-
-  document.getElementById('chat-messages').innerHTML = '';
-  const greeting = buildGreeting(kid, lp, sessionSummaries, upcomingExams);
-  showView('chat');
-  await applyDyslexiaFont(lp?.profile_json);  // before addQuinnMsg so font is active when text first renders
-  addQuinnMsg('chat', greeting);
-  speakQuinn(greeting);
 }
 
 async function handleSignIn(e) {
@@ -1502,64 +1508,69 @@ async function sendMessage(view) {
 // After 8+ meet & greet exchanges, write a minimal initial learner_profile
 // and route the kid to the main chat view.
 async function saveMeetGreetProfile() {
-  const initialProfile = {
-    stable: {
-      name:  currentKidRecord.name,
-      age:   currentKidRecord.age,
-      grade: currentKidRecord.grade,
-    },
-    current_state: {
-      current_stressors:  [],
-      exam_anxiety_level: 'unknown',
-      last_session_mood:  'first_meeting',
-    },
-    observed_patterns: {
-      communication_style:          'unknown',
-      explanation_style_that_works: [],
-      what_to_avoid:                [],
-      frustration_signal:           'unknown',
-      encouragement_style:          'unknown',
-    },
-    academic: {
-      strong_subjects: [],
-      weak_subjects:   [],
-      specific_gaps:   [],
-    },
-    interests: [],
-  };
+  try {
+    const initialProfile = {
+      stable: {
+        name:  currentKidRecord.name,
+        age:   currentKidRecord.age,
+        grade: currentKidRecord.grade,
+      },
+      current_state: {
+        current_stressors:  [],
+        exam_anxiety_level: 'unknown',
+        last_session_mood:  'first_meeting',
+      },
+      observed_patterns: {
+        communication_style:          'unknown',
+        explanation_style_that_works: [],
+        what_to_avoid:                [],
+        frustration_signal:           'unknown',
+        encouragement_style:          'unknown',
+      },
+      academic: {
+        strong_subjects: [],
+        weak_subjects:   [],
+        specific_gaps:   [],
+      },
+      interests: [],
+    };
 
-  const { error: profileSaveError } = await supabase.from('learner_profiles').upsert({
-    kid_id:       currentKidRecord.id,
-    profile_json: initialProfile,
-    updated_at:   new Date().toISOString(),
-  }, { onConflict: 'kid_id' });
-  if (profileSaveError) console.error('[Quinn] learner_profiles upsert failed:', profileSaveError);
+    const { error: profileSaveError } = await supabase.from('learner_profiles').upsert({
+      kid_id:       currentKidRecord.id,
+      profile_json: initialProfile,
+      updated_at:   new Date().toISOString(),
+    }, { onConflict: 'kid_id' });
+    if (profileSaveError) console.error('[Quinn] learner_profiles upsert failed:', profileSaveError);
 
-  // Update in-memory state so the chat view has a profile to work with
-  learnerProfile = { kid_id: currentKidRecord.id, profile_json: initialProfile };
+    // Update in-memory state so the chat view has a profile to work with
+    learnerProfile = { kid_id: currentKidRecord.id, profile_json: initialProfile };
 
-  // Carry the MG conversation seamlessly into the chat view —
-  // the kid should feel zero discontinuity. Profile save is invisible.
-  conversationHistory = [...mgConversationHistory];
-  lastSummaryAt       = conversationHistory.length; // don't re-summarize what's already happened
-  mgConversationHistory = [];
-  mgExchangeCount       = 0;
+    // Carry the MG conversation seamlessly into the chat view —
+    // the kid should feel zero discontinuity. Profile save is invisible.
+    conversationHistory = [...mgConversationHistory];
+    lastSummaryAt       = conversationHistory.length; // don't re-summarize what's already happened
+    mgConversationHistory = [];
+    mgExchangeCount       = 0;
 
-  sessionStartedAt      = new Date().toISOString();
-  currentSessionSummary = null;
-  sessionEnded          = false;
-  currentDriftScore     = 0;
-  devSessionId          = crypto.randomUUID();
+    sessionStartedAt      = new Date().toISOString();
+    currentSessionSummary = null;
+    sessionEnded          = false;
+    currentDriftScore     = 0;
+    devSessionId          = crypto.randomUUID();
 
-  // Move the visual messages from MG container into the chat container
-  const mgMessages   = document.getElementById('mg-messages');
-  const chatMessages = document.getElementById('chat-messages');
-  chatMessages.innerHTML = '';
-  while (mgMessages.firstChild) chatMessages.appendChild(mgMessages.firstChild);
+    // Move the visual messages from MG container into the chat container
+    const mgMessages   = document.getElementById('mg-messages');
+    const chatMessages = document.getElementById('chat-messages');
+    chatMessages.innerHTML = '';
+    while (mgMessages.firstChild) chatMessages.appendChild(mgMessages.firstChild);
 
-  showView('chat');
-  await applyDyslexiaFont(learnerProfile?.profile_json); // MG→chat: apply dyslexia font before messages are visible
-  resetInactivityTimer();
+    showView('chat');
+    await applyDyslexiaFont(learnerProfile?.profile_json); // MG→chat: apply dyslexia font before messages are visible
+    resetInactivityTimer();
+  } catch (err) {
+    console.error('[Quinn] saveMeetGreetProfile error:', err);
+    addQuinnMsg('mg', "Something went wrong — let's try that again.");
+  }
 }
 
 // ── Session summary & profile update ─────────────────────────────────────────
@@ -1696,46 +1707,51 @@ async function loadParentDashboard() {
   const bodyEl = document.getElementById('parent-body');
   bodyEl.innerHTML = '<div class="parent-loading">Loading…</div>';
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-  const { data: kids, error } = await supabase
-    .from('kids').select('*').or(`parent_id.eq.${user.id},co_parent_id.eq.${user.id}`).order('name');
+    const { data: kids, error } = await supabase
+      .from('kids').select('*').or(`parent_id.eq.${user.id},co_parent_id.eq.${user.id}`).order('name');
 
-  if (error || !kids?.length) {
-    bodyEl.innerHTML = '<div class="parent-loading">No kids found — add kid accounts in Supabase.</div>';
-    return;
+    if (error || !kids?.length) {
+      bodyEl.innerHTML = '<div class="parent-loading">No kids found — add kid accounts in Supabase.</div>';
+      return;
+    }
+
+    parentKids = kids;
+    parentData = {};
+
+    const today = new Date().toISOString().split('T')[0];
+
+    await Promise.all(parentKids.map(async (kid) => {
+      const [profileRes, summaryRes, examRes, materialRes, noteRes] = await Promise.all([
+        supabase.from('learner_profiles').select('*').eq('kid_id', kid.id).single(),
+        supabase.from('session_summaries').select('*').eq('kid_id', kid.id)
+          .order('started_at', { ascending: false }).limit(3),
+        supabase.from('exams').select('*').eq('kid_id', kid.id)
+          .gte('exam_date', today).is('archived_at', null)
+          .order('exam_date', { ascending: true }),
+        supabase.from('study_materials').select('*').eq('kid_id', kid.id)
+          .is('archived_at', null).order('uploaded_at', { ascending: false }),
+        supabase.from('parent_notes').select('*').eq('kid_id', kid.id)
+          .order('created_at', { ascending: false }).limit(3),
+      ]);
+      parentData[kid.id] = {
+        kid,
+        profile:   profileRes.data  || null,
+        summaries: summaryRes.data  || [],
+        exams:     examRes.data     || [],
+        materials: materialRes.data || [],
+        notes:     noteRes.data     || [],
+      };
+    }));
+
+    renderParentDashboard();
+  } catch (err) {
+    console.error('[Quinn] loadParentDashboard error:', err);
+    bodyEl.innerHTML = '<div class="parent-loading">Failed to load — refresh the page.</div>';
   }
-
-  parentKids = kids;
-  parentData = {};
-
-  const today = new Date().toISOString().split('T')[0];
-
-  await Promise.all(parentKids.map(async (kid) => {
-    const [profileRes, summaryRes, examRes, materialRes, noteRes] = await Promise.all([
-      supabase.from('learner_profiles').select('*').eq('kid_id', kid.id).single(),
-      supabase.from('session_summaries').select('*').eq('kid_id', kid.id)
-        .order('started_at', { ascending: false }).limit(3),
-      supabase.from('exams').select('*').eq('kid_id', kid.id)
-        .gte('exam_date', today).is('archived_at', null)
-        .order('exam_date', { ascending: true }),
-      supabase.from('study_materials').select('*').eq('kid_id', kid.id)
-        .is('archived_at', null).order('uploaded_at', { ascending: false }),
-      supabase.from('parent_notes').select('*').eq('kid_id', kid.id)
-        .order('created_at', { ascending: false }).limit(3),
-    ]);
-    parentData[kid.id] = {
-      kid,
-      profile:   profileRes.data  || null,
-      summaries: summaryRes.data  || [],
-      exams:     examRes.data     || [],
-      materials: materialRes.data || [],
-      notes:     noteRes.data     || [],
-    };
-  }));
-
-  renderParentDashboard();
 }
 
 function renderParentDashboard() {
