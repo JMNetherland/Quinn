@@ -1,7 +1,7 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-29 (Session 18 — UI/UX audit remediation)
+> Last updated: 2026-03-29 (Session 19 — pre-v2 code quality fixes + Sonnet model switch)
 
 ---
 
@@ -19,7 +19,7 @@ Confirmed working on device. No further action needed.
 
 ## Version
 
-**Current: `v0.7.0`**
+**Current: `v0.7.1`**
 
 | Bump | When |
 |---|---|
@@ -27,7 +27,7 @@ Confirmed working on device. No further action needed.
 | MINOR (0.**x**.0) | New feature shipped and tested |
 | MAJOR (**x**.0.0) | `1.0.0` = production-ready, all kids using it |
 
-Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.7.0`.
+Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.7.1`.
 
 ---
 
@@ -157,13 +157,17 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Dev chat logging (flag-gated, fire-and-forget) | ✅ Complete |
 | PWA support (manifest, icons, iOS meta tags, sw.js update) | ✅ Complete |
 | UI/UX accessibility pass (WCAG contrast, 44px touch targets, focus rings, SVG icons, typewriter, prefers-reduced-motion, responsive breakpoint, aria labels) | ✅ v0.7.0 |
+| Async error handling (routeUser, loadParentDashboard, saveMeetGreetProfile) | ✅ v0.7.1 |
+| State management — resetSessionState() extracted from signOut() | ✅ v0.7.1 |
+| Learner profile validation — isValidLearnerProfile() gate before upsert | ✅ v0.7.1 |
+| Chat model — Claude Sonnet 4.6 (switched back from Haiku 4.5) | ✅ v0.7.1 |
 
 ---
 
 ## Next Steps (in order)
 
-1. **Test the live app** — verify UI/UX changes end-to-end: focus rings, SVG icons, typewriter effect, touch targets on mobile
-2. **Code quality gaps** — address the three gaps from CLAUDE.md before v2: async error handling (HIGH), implicit state management (MEDIUM), learner profile schema validation (MEDIUM)
+1. **Test the live app** — verify UI/UX changes end-to-end on real devices
+2. **v2 planning** — all pre-v2 code quality gaps are now resolved; ready to start v2 design work (illustrated character, ElevenLabs TTS, audio lessons)
 
 ---
 
