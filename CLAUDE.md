@@ -4,11 +4,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Navigation
+- **Codebase map:** read `CODEBASE.md` before exploring this project's files
+- **Vault:** read `C:/Dev/obsidian-vault/VAULT_INDEX.md` before creating or searching vault notes
+- **Vault update:** after updating HANDOFF.md, also update `C:/Dev/obsidian-vault/Projects/Quinn.md` — version, blockers, and session number
+
 ## Project Overview
 
 **Quinn** is an AI learning companion for kids — a named, consistent AI friend (not a tutor) that builds a genuine relationship with each child through persistent memory, age-calibrated tone, and interest-driven teaching. Built for Jason's family: Mason (10), Joie (13), Bella (15). Parents (Jason + Keri) manage all three profiles from a shared dashboard.
 
-Status: **Live — v0.3.1, Session 16 complete.** Full PRD is in `QUINN_PRD.md`.
+Status: **Live — v0.6.0, Session 17 complete.** Full PRD is in `QUINN_PRD.md`.
 
 Key principle: Rapport and trust come first. Education follows naturally. Quinn earns the right to teach.
 
@@ -68,13 +73,7 @@ parent_notes       — id, kid_id, note, created_at
 Same pattern as Daily Quest — one `index.html` with all CSS, HTML, and JS inline. No build step. Open in browser to develop, push to GitHub to deploy.
 
 ## Screen Structure
-- **Child login** — profile selector (kids only see own profile, no siblings)
-- **Quinn chat** — full-screen chat with Quinn's animated visual presence
-- **Meet and greet** — first-run flow for new child profiles (cannot be skipped)
-- **Parent dashboard** — accessed separately; overview of all three kids + material/exam management
-- **Parent onboarding** — separate from child meet and greet
-
-Admin access: URL parameter or separate login path (TBD — see Open Questions in PRD).
+Child login → Quinn chat → Meet and greet (first-run, unskippable) → Parent dashboard. See `obsidian-vault/Projects/Quinn/Screen Structure.md`.
 
 ## Quinn Tone Per Child
 - **Mason (10)**: High energy, short wins, humor, gaming analogies. Quinn feels like a cool older sibling.
@@ -99,46 +98,8 @@ Tone is driven by the learner profile and age — not hardcoded persona switchin
 3. Supabase: use the Supabase MCP server for direct schema inspection and query testing during development
 4. Deploy: push to GitHub (Pages auto-deploys)
 
-## Skills & Tools to Have Active
-- `frontend-design` skill — before any UI work
-- `feature-dev` skill — for structured multi-phase implementation
-- Context7 MCP — for up-to-date Supabase/Claude API docs
-- Supabase MCP — for direct DB access during development
-
-## Custom Quinn Skills to Build (in order)
-1. `quinn-memory-schema` — exact learner profile JSON structure and three-tier update rules
-2. `quinn-prompt-engineer` — how to write/refine Quinn's system prompts, voice per age group
-3. `quinn-safety-review` — pre-ship safety checklist for kids app
-4. `quinn-ui-patterns` — Quinn's UI conventions, visual presence states, chat patterns
-
-## v2 Architecture Notes (do not block these in v1)
-- Audio output: structure Claude response pipeline so text can be passed to ElevenLabs TTS without restructuring
-- YouTube co-watching: `source_type` on `study_materials` already accounts for this
-- pgvector: plain Postgres for v1, vector embeddings upgrade in v2 for semantic session retrieval
-
-## v2 Framework Migration Plan
-
-Quinn is intentionally a single HTML file for v1. The natural migration moment is **v2**, when ElevenLabs TTS, Lottie animations, and the illustrated Ember-like character push the complexity past what a single file can cleanly manage.
-
-**When v2 begins, migrate to:**
-- **Vite + React + TypeScript** — same stack as Ember (the sibling project); proven workflow
-- **Zustand** — session state, active kid, conversation state machine (see gap below)
-- **Vitest + React Testing Library** — unit tests for learner profile update logic (pure function), smoke tests for conversation flow
-- **Tailwind v4 @theme tokens** — replace inline CSS variables with the same token pattern used in Ember
-
-**What does NOT change in v2:**
-- Supabase backend, schema, and RLS — stays exactly as-is
-- Edge Functions — stays as-is (all API calls stay server-side)
-- GitHub Pages deployment — Vite builds to `/dist`, same Pages workflow
-
-**Migration sequence when the time comes:**
-1. Scaffold `vite + react-ts` project alongside `index.html` (don't delete yet)
-2. Extract state machine and learner profile logic as TypeScript modules first (makes porting easier)
-3. Port screens one by one: child login → chat → meet and greet → parent dashboard
-4. Add tests as each screen is ported
-5. Cut over GitHub Pages to point at the built output
-
-**Reference:** Ember (sibling project at `C:\Dev\personal\web-apps\Ember`) is the exact target stack. Patterns, token names, and subagent workflow are directly transferable.
+## v2 Notes & Skills Backlog
+See `obsidian-vault/Projects/Quinn/v2 Architecture Notes.md` and `obsidian-vault/Projects/Quinn/Skills to Build.md`.
 
 ---
 
