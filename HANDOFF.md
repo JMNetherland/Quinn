@@ -5,7 +5,25 @@
 
 ---
 
-## ✅ NO CURRENT BLOCKERS
+## ⚠️ COMPLIANCE BLOCKERS — Must Resolve Before Accepting Paying Customers
+
+Quinn is v1 feature-complete but NOT cleared for paid subscribers until these are done.
+
+| Item | Deadline | Status |
+|---|---|---|
+| Rewrite Privacy Policy (COPPA-compliant, names Anthropic + Supabase, parental rights, data retention) | April 22, 2026 | ❌ Not started |
+| Rewrite Terms of Service (parent as contracting party, subscription terms, AI disclosure) | Before first paying customer | ❌ Not started |
+| Wire Verifiable Parental Consent to subscription signup | Before first paying customer | ❌ Not started |
+| Add Download + Delete child data controls to parent dashboard | Before first paying customer | ❌ Not started |
+| Execute Supabase DPA (supabase.com/legal/dpa) | Before first paying customer | ❌ Not started |
+| Write 1-page Information Security Program (internal doc) | April 22, 2026 | ❌ Not started |
+| Add AI disclosure to Quinn UI ("powered by Claude AI / Anthropic") | Before first paying customer | ❌ Not started |
+
+**Full compliance checklist:** `C:/Dev/obsidian-vault/Projects/The Family Stack/compliance-checklist.md`
+
+---
+
+## ✅ NO CODE BLOCKERS
 
 ### ~~🔴 1. Chat is broken in production (401 Unauthorized)~~ — RESOLVED 2026-03-29
 
