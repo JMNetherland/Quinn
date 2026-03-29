@@ -1300,13 +1300,7 @@ async function applyDyslexiaFont(profile_json) {
   }
 }
 
-async function signOut() {
-  document.body.classList.remove('dyslexia-font');
-  window.speechSynthesis?.cancel();
-  if (recognition) { recognition.abort(); recognition = null; }
-  isListening = false;
-  if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
-  await supabase.auth.signOut();
+function resetSessionState() {
   currentKidRecord      = null;
   learnerProfile        = null;
   sessionSummaries      = [];
@@ -1326,6 +1320,16 @@ async function signOut() {
   sessionEnded          = false;
   currentDriftScore     = 0;
   devSessionId          = null;
+}
+
+async function signOut() {
+  document.body.classList.remove('dyslexia-font');
+  window.speechSynthesis?.cancel();
+  if (recognition) { recognition.abort(); recognition = null; }
+  isListening = false;
+  if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
+  await supabase.auth.signOut();
+  resetSessionState();
   showView('signin');
 }
 
