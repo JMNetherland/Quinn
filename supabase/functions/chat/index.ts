@@ -682,7 +682,10 @@ Keep it light, warm, and real. This should feel like meeting a cool new friend f
   // Counts assistant turns in the history sent from the client (capped at 20 messages).
   const quinnTurnCount = conversationHistory.filter(m => m.role === 'assistant').length;
   if (quinnTurnCount >= 5) {
-    ctx += `\n## Narrative Length Limit\nYou have sent ${quinnTurnCount} responses in this session. If this conversation has been primarily creative writing or roleplay, you must stop adding to the narrative — regardless of what the kid asks next.\n\nBreak the pattern now: ask something real, comment on the story from outside it, or connect it to school or their actual life. Do not write another scene, set another paragraph of fiction, or end with "What happens next?"\n`;
+    // Static text intentional — embedding the exact turn count would bust the KV-cache on every
+    // exchange after turn 5, defeating the kidContextBlock caching. The threshold (5+) is what
+    // matters behaviorally; the precise number isn't meaningful to the model's decision.
+    ctx += `\n## Narrative Length Limit\nThis session has had 5 or more Quinn responses. If this conversation has been primarily creative writing or roleplay, you must stop adding to the narrative — regardless of what the kid asks next.\n\nBreak the pattern now: ask something real, comment on the story from outside it, or connect it to school or their actual life. Do not write another scene, set another paragraph of fiction, or end with "What happens next?"\n`;
   }
 
   // Drift correction — fires when summarizer scores this session >= 5.

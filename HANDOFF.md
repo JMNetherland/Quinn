@@ -1,46 +1,25 @@
 # Quinn — Project Handoff Document
 
 > **Update this document after every build step.**
-> Last updated: 2026-03-24 (Session 17)
+> Last updated: 2026-03-29 (Session 18 — UI/UX audit remediation)
 
 ---
 
-## ⚠️ CURRENT BLOCKERS
+## ✅ NO CURRENT BLOCKERS
 
-These two issues are blocking real use of the app. Fix before anything else.
+### ~~🔴 1. Chat is broken in production (401 Unauthorized)~~ — RESOLVED 2026-03-29
 
-### 🔴 1. Chat is broken in production (401 Unauthorized on every message)
+Edge Functions redeployed with `--no-verify-jwt`. Chat confirmed working end-to-end in production.
 
-**Root cause (diagnosed):** The Edge Function is deployed with JWT verification **enabled** (Supabase default). A 401 is returned before the function code even runs.
+### ~~🟠 2. OpenDyslexic not rendering on iOS~~ — RESOLVED 2026-03-29
 
-**Client-side fix — applied in Session 14:** All four `supabase.functions.invoke()` calls now have an explicit `if (!session) return;` guard before the invoke, and pass `Authorization: Bearer <access_token>` directly (no anon-key fallback). The client is sending the JWT correctly.
-
-**Remaining fix — deploy once with these commands (see Needs Jason):**
-```
-supabase functions deploy chat summarize update-profile ingest-material --no-verify-jwt
-supabase secrets set ANTHROPIC_API_KEY=<your-key>
-```
-
-Then check Edge Function logs if it still fails: Supabase Dashboard → Edge Functions → chat → Logs (shows the exact error, usually a missing `ANTHROPIC_API_KEY` secret).
-
-### 🟠 2. OpenDyslexic still not rendering on iOS (two fix attempts, still broken)
-
-Two rounds of fixes attempted (base64 embed, dynamic style injection, timing fix, SW cache bump) — still not working on device.
-
-**iOS debugging without a Mac — use Eruda:**
-To debug on iOS without a Mac, Eruda mobile devtools is wired into the app behind `?debug=true` (CDN pinned to `eruda@3/eruda.min.js` as of Session 14) — open Quinn in Safari on iPhone at `https://jmnetherland.github.io/Quinn/?debug=true`, log in as Bella, tap the floating Eruda button, go to Elements → find a chat message → check Computed styles → confirm what `font-family` is actually applied. This will tell us in 30 seconds what two blind fixes couldn't.
-
-**Next things to try at the desk:**
-- Open Quinn in **Safari directly** (not as a PWA) — if font renders there but not in the PWA, it's a service worker cache issue.
-- **Remote DevTools**: plug iPhone into Mac → Safari → Develop → [iPhone name] → inspect Quinn. Check console for font errors; check Computed styles on a chat message to see what `font-family` is actually applied.
-- If computed styles show `OpenDyslexic` but it still looks wrong, iOS may be substituting a system font due to format mismatch → try adding a `woff` fallback alongside the `woff2` base64.
-- **Nuclear option**: serve the font file separately as `icons/OpenDyslexic-Regular.woff2` (already generated in the icons pipeline) and reference it with a relative path in `@font-face` instead of base64. Some iOS versions handle file-relative references more reliably than data URIs.
+Confirmed working on device. No further action needed.
 
 ---
 
 ## Version
 
-**Current: `v0.6.0`**
+**Current: `v0.7.0`**
 
 | Bump | When |
 |---|---|
@@ -48,7 +27,7 @@ To debug on iOS without a Mac, Eruda mobile devtools is wired into the app behin
 | MINOR (0.**x**.0) | New feature shipped and tested |
 | MAJOR (**x**.0.0) | `1.0.0` = production-ready, all kids using it |
 
-Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.6.0`.
+Update `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together on every release. Tag the git commit: `git tag v0.7.0`.
 
 ---
 
@@ -177,13 +156,14 @@ Quinn is a personal AI learning companion for three kids. It builds real relatio
 | Roleplay guardrails (identity anchoring + drift detection) | ✅ Complete |
 | Dev chat logging (flag-gated, fire-and-forget) | ✅ Complete |
 | PWA support (manifest, icons, iOS meta tags, sw.js update) | ✅ Complete |
+| UI/UX accessibility pass (WCAG contrast, 44px touch targets, focus rings, SVG icons, typewriter, prefers-reduced-motion, responsive breakpoint, aria labels) | ✅ v0.7.0 |
 
 ---
 
 ## Next Steps (in order)
 
-1. **Test the live app** — full end-to-end test pass with real kid accounts
-2. **Session summary verification** — confirm 5-minute idle triggers a summary write correctly in production
+1. **Test the live app** — verify UI/UX changes end-to-end: focus rings, SVG icons, typewriter effect, touch targets on mobile
+2. **Code quality gaps** — address the three gaps from CLAUDE.md before v2: async error handling (HIGH), implicit state management (MEDIUM), learner profile schema validation (MEDIUM)
 
 ---
 
@@ -942,6 +922,52 @@ supabase functions deploy chat summarize --no-verify-jwt
 
 ---
 
+### Session 18 — 2026-03-29
+
+#### Work completed
+
+**UI/UX audit remediation — all 20 issues resolved (v0.7.0)**
+
+Full ui-ux-pro-max audit run against Quinn. All 20 findings addressed across 3 waves (CSS → HTML → JS).
+
+**T1 — CSS fixes:**
+- `:focus-visible` ring added globally; `outline: none` removed
+- `@media (prefers-reduced-motion: reduce)` block disables dot-pulse and canvas loop
+- All touch targets bumped to 44px minimum: `.back-btn`, `.send-btn`, `.mic-btn`, `.mute-btn`, `.pwd-toggle`, `.material-delete-btn`; `.btn-sm` and `.pill-btn` set to 32px minimum
+- WCAG contrast: `--text-2` → `#8888b8` (4.31:1 → 5.8:1), `--text-3` → `#5a5a80` (decorative only)
+- Font sizes bumped across labels, timestamps, and pill buttons
+- `overscroll-behavior: contain` on `.messages`
+- `env(safe-area-inset-bottom)` on input bar
+- `@media (min-width: 768px)` desktop breakpoint for parent dashboard
+- `touch-action: manipulation` on all buttons
+- `.sr-only` utility class added
+
+**T2 — HTML fixes:**
+- `<title>` updated to "Quinn — AI Learning Companion"
+- All 4 views wrapped with `role="main"` + `aria-label`
+- Chat headers marked `role="banner"`
+- All emoji icons replaced with inline Lucide SVGs: ← (ArrowLeft), 🔊/🔇 (Volume2/VolumeX), 🎤 (Mic), → (Send), 🗑 (Trash2)
+- `aria-label` added to all icon-only buttons
+- `aria-live="polite" aria-atomic="false"` on both message containers
+- `aria-label` on both chat textareas
+- `quinn-sr-status` div added (`role="status" aria-live="polite"`) for screen reader announcements
+
+**T3 — JS fixes:**
+- `ICONS` constant with SVG strings for volumeOn, volumeOff, trash
+- `prefersReducedMotion` const guards canvas animation and typewriter
+- `toggleMute()` uses ICONS + updates `aria-label` dynamically
+- `setSending()` helper disables all `.send-btn` elements during API calls
+- `typewriterAppend()` — character-by-character reveal at 14ms/char, skipped if `prefersReducedMotion`
+- `sendMessage()` uses `await typewriterAppend()` for Quinn responses
+- `addThinking()` / `thinking.remove()` write sr-status for screen readers
+
+#### Files changed
+- `index.html` — T1 CSS + T2 HTML + T3 JS changes (3 commits: 22a8c4c, 3c9e8c3, f8c4bcb + version bump)
+- `sw.js` — CACHE_NAME bumped to `quinn-v0.7.0`
+- `HANDOFF.md` — this update
+
+---
+
 ## Special Considerations
 
 - **Bella is dyslexic** — her child profile must use a dyslexia-friendly font (e.g. OpenDyslexic or similar). This is a per-child profile setting, not a global app setting.
@@ -956,3 +982,4 @@ supabase functions deploy chat summarize --no-verify-jwt
 - v0.4.0 (2026-03-24): Bulk PDF upload with per-file progress queue; sanitize storage filenames for emoji and non-ASCII characters
 - v0.5.0 (2026-03-24): Aggressive drift guardrails — message count limit (5 Quinn turns), sticky correction that holds when kid pushes back, fixed broken session pattern detection, fixed drift score reset threshold
 - v0.6.0 (2026-03-24): Parent can reset any kid's password from the Details panel; new reset-kid-password Edge Function with server-side ownership verification
+- v0.7.0 (2026-03-29): UI/UX accessibility pass — focus rings, WCAG contrast fixes, 44px touch targets, SVG icons (no more emoji), typewriter effect, prefers-reduced-motion guards, responsive desktop breakpoint, aria labels + landmarks throughout
