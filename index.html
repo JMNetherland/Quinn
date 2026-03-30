@@ -832,7 +832,7 @@ body.dyslexia-font div {
 <body>
 
 <!-- ══ SIGN-IN ═══════════════════════════════════════════════════════════════ -->
-<div id="view-signin" class="view active" role="main" aria-label="Sign in to Quinn">
+<div id="view-signin" class="view" role="main" aria-label="Sign in to Quinn">
   <div class="quinn-stage" id="signin-stage"></div>
   <p class="signin-wordmark">Quinn</p>
 
@@ -1050,6 +1050,7 @@ async function routeUser(userId, errorEl) {
     if (profileErr || !profile) {
       if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
       await supabase.auth.signOut();
+      showView('signin');
       return;
     }
 
@@ -1058,6 +1059,7 @@ async function routeUser(userId, errorEl) {
     if (!profile.kid_id) {
       if (errorEl) errorEl.textContent = 'Account setup incomplete. Contact a parent.';
       await supabase.auth.signOut();
+      showView('signin');
       return;
     }
 
@@ -1067,6 +1069,7 @@ async function routeUser(userId, errorEl) {
     if (!kid) {
       if (errorEl) errorEl.textContent = 'Could not load your profile. Try again.';
       await supabase.auth.signOut();
+      showView('signin');
       return;
     }
 
@@ -1123,15 +1126,39 @@ async function routeUser(userId, errorEl) {
     devSessionId          = crypto.randomUUID();
 
     document.getElementById('chat-messages').innerHTML = '';
-    const greeting = buildGreeting(kid, lp, sessionSummaries, upcomingExams);
-    showView('chat');
-    await applyDyslexiaFont(lp?.profile_json);  // before addQuinnMsg so font is active when text first renders
-    addQuinnMsg('chat', greeting);
-    speakQuinn(greeting);
+
+    // Restore chat history if the kid refreshed mid-session in the same tab.
+    // sessionStorage is tab-scoped and clears on browser close, so this only
+    // fires when the tab is still alive (F5 / Ctrl+R), not on a true new session.
+    const savedHistory = (() => {
+      try {
+        const raw = sessionStorage.getItem(`quinn_chat_${kid.id}`);
+        return raw ? JSON.parse(raw) : null;
+      } catch (_) { return null; }
+    })();
+
+    if (savedHistory?.length > 0) {
+      conversationHistory = savedHistory;
+      lastSummaryAt       = savedHistory.length; // don't re-summarize already-written history
+      await applyDyslexiaFont(lp?.profile_json);
+      for (const msg of savedHistory) {
+        if (msg.role === 'user') addKidMsg('chat', msg.content);
+        else addQuinnMsg('chat', msg.content);
+      }
+      showView('chat');
+      resetInactivityTimer();
+    } else {
+      const greeting = buildGreeting(kid, lp, sessionSummaries, upcomingExams);
+      showView('chat');
+      await applyDyslexiaFont(lp?.profile_json);  // before addQuinnMsg so font is active when text first renders
+      addQuinnMsg('chat', greeting);
+      speakQuinn(greeting);
+    }
   } catch (err) {
     console.error('[Quinn] routeUser error:', err);
     if (errorEl) errorEl.textContent = 'Something went wrong — please try again.';
     await supabase.auth.signOut();
+    showView('signin');
   }
 }
 
@@ -1328,6 +1355,10 @@ async function signOut() {
   if (recognition) { recognition.abort(); recognition = null; }
   isListening = false;
   if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
+  // Clear persisted chat history so the next login starts fresh
+  if (currentKidRecord?.id) {
+    try { sessionStorage.removeItem(`quinn_chat_${currentKidRecord.id}`); } catch (_) {}
+  }
   await supabase.auth.signOut();
   resetSessionState();
   showView('signin');
@@ -1470,6 +1501,13 @@ async function sendMessage(view) {
         const trimCount = history.length - 20;
         history.splice(0, trimCount);
         if (view === 'chat') lastSummaryAt = Math.max(0, lastSummaryAt - trimCount);
+      }
+
+      // Persist chat history to sessionStorage so a tab refresh restores context
+      if (view === 'chat' && currentKidRecord?.id) {
+        try {
+          sessionStorage.setItem(`quinn_chat_${currentKidRecord.id}`, JSON.stringify(conversationHistory));
+        } catch (_) {}
       }
 
       // Quinn animation state — celebrating > curious > listening
@@ -2488,9 +2526,11 @@ if (window.speechSynthesis) {
 // Stamp version into the sign-in screen
 document.getElementById('app-version').textContent = `v${APP_VERSION}`;
 
-// Auto-route if a session already exists (handles page refresh while logged in)
+// Auto-route if a session already exists (handles page refresh while logged in).
+// Only show signin after the check resolves — avoids flash-to-signin on refresh.
 supabase.auth.getSession().then(({ data: { session } }) => {
   if (session?.user) routeUser(session.user.id);
+  else showView('signin');
 });
 
 // ── Quinn state ───────────────────────────────────────────────────────────────
